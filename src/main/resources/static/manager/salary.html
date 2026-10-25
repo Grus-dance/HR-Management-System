@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>薪酬等级调整 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="薪酬等级调整">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>薪酬等级调整</h1>
+                    <p class="page-desc">默认只显示常用信息，点击「展开」查看津贴、业绩、曾就职与调整记录</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>薪酬等级表</h2><span class="sub">等级决定基本工资</span></div>
+                <div class="card-body tight" id="grade-chips"><span class="muted small">加载中…</span></div>
+            </div>
+
+            <div class="card">
+                <div class="filter-bar">
+                    <div class="field grow search-input">
+                        <label for="keyword">关键字</label>
+                        <input id="keyword" type="text" placeholder="工号或姓名">
+                    </div>
+                    <div class="field">
+                        <label for="department">部门</label>
+                        <select id="department"><option value="">全部部门</option></select>
+                    </div>
+                    <button class="btn btn-primary" id="search-button" type="button">查询</button>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>工号</th><th>姓名</th><th>部门</th><th>当前等级</th>
+                            <th>基本工资</th><th>本月绩效</th><th class="actions">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="salary-body"><tr><td colspan="7"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+                <div id="pager"></div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const state = { page: 1, size: 10, keyword: '', department: '' };
+        let grades = [];
+        let expandedId = null;
+        let expandedButton = null;
+
+        const body = document.getElementById('salary-body');
+        const pager = document.getElementById('pager');
+
+        grades = await Api.get('/api/mgr/salary-grades');
+        document.getElementById('grade-chips').innerHTML =
+            '<div class="legend-note">' + grades.map((g) =>
+                '<span><span class="tag tag-blue">' + UI.escapeHtml(g.gradeCode) + '</span> ' +
+                UI.escapeHtml(g.gradeName) + ' · ¥ ' + UI.money(g.baseSalary) + '</span>'
+            ).join('') + '</div>';
+
+        try {
+            const departments = await Api.get('/api/dict/departments');
+            document.getElementById('department').innerHTML =
+                '<option value="">全部部门</option>' +
+                departments.map((d) => '<option value="' + UI.escapeHtml(d) + '">' + UI.escapeHtml(d) + '</option>').join('');
+        } catch (err) { /* 忽略 */ }
+
+        function collapse() {
+            if (expandedId !== null) {
+                const row = document.querySelector('tr.expand-row[data-expand="' + expandedId + '"]');
+                if (row) row.remove();
+                if (expandedButton) {
+                    expandedButton.innerHTML = '展开 <span class="caret">▾</span>';
+                    expandedButton.setAttribute('aria-expanded', 'false');
+                }
+            }
+            expandedId = null;
+            expandedButton = null;
+        }
+
+        function panelHtml(detail, employeeId) {
+            const s = detail.salary || {};
+            const perfs = detail.recentPerformances || [];
+            const experiences = detail.experiences || [];
+            const adjustments = detail.adjustments || [];
+            const options = grades.map((g) =>
+                '<option value="' + g.gradeCode + '"' + (g.gradeCode === detail.employee.gradeCode ? ' selected' : '') + '>' +
+                UI.escapeHtml(g.gradeCode) + ' ' + UI.escapeHtml(g.gradeName) + ' · ¥ ' + UI.money(g.baseSalary) + '</option>'
+            ).join('');
+
+            let performanceHtml = '<p class="muted small">暂无记录</p>';
+            if (perfs.length) {
+                performanceHtml = '<table class="mini-table"><tbody>' + perfs.map((p) =>
+                    '<tr><td>' + UI.escapeHtml(p.period) + '</td><td class="num">' + UI.escapeHtml(p.score) + ' 分</td>' +
+                    '<td>' + UI.statusTag(p.status) + '</td></tr>'
+                ).join('') + '</tbody></table>';
+            }
+
+            let experienceHtml = '<p class="muted small">暂无记录</p>';
+            if (experiences.length) {
+                experienceHtml = '<div class="timeline">' + experiences.map((e) =>
+                    '<div class="timeline-item"><div class="title">' + UI.escapeHtml(e.company) + ' · ' + UI.escapeHtml(e.position) + '</div>' +
+                    '<div class="meta">' + UI.fmtDate(e.startDate) + ' 至 ' + UI.fmtDate(e.endDate) + '</div></div>'
+                ).join('') + '</div>';
+            }
+
+            let adjustmentHtml = '<p class="muted small">暂无记录</p>';
+            if (adjustments.length) {
+                adjustmentHtml = '<div class="timeline">' + adjustments.map((a) =>
+                    '<div class="timeline-item"><div class="title">' + UI.escapeHtml(a.typeLabel) + '：' +
+                    UI.escapeHtml(a.oldValue) + ' → ' + UI.escapeHtml(a.newValue) + '</div>' +
+                    '<div class="meta">' + UI.fmtDateTime(a.createdAt) + ' · ' + UI.escapeHtml(a.operatorName) + '</div></div>'
+                ).join('') + '</div>';
+            }
+
+            return '<div class="expand-panel">' +
+                '<div class="expand-col">' +
+                '<h4>薪酬构成（' + UI.escapeHtml(s.month) + '）</h4>' +
+                '<table class="mini-table"><tbody>' +
+                '<tr><td>基本工资</td><td class="num">¥ ' + UI.money(s.baseSalary) + '</td></tr>' +
+                '<tr><td>岗位津贴</td><td class="num">¥ ' + UI.money(s.allowance) + '</td></tr>' +
+                '<tr><td>奖金比例</td><td class="num">' + UI.percent(s.bonusRatio) + '</td></tr>' +
+                '<tr><td>绩效奖金</td><td class="num">¥ ' + UI.money(s.performanceBonus) + '</td></tr>' +
+                '<tr><td>红包</td><td class="num">¥ ' + UI.money(s.redPacket) + '</td></tr>' +
+                '<tr><td>本月应发</td><td class="num"><strong>¥ ' + UI.money(s.total) + '</strong></td></tr>' +
+                '</tbody></table>' +
+                '<h4 style="margin-top:16px">近 3 个月业绩</h4>' + performanceHtml +
+                '<h4 style="margin-top:16px">曾就职经历</h4>' + experienceHtml +
+                '</div>' +
+                '<div class="expand-col">' +
+                '<h4>调整薪酬等级</h4>' +
+                '<form class="grade-form">' +
+                '<div class="field"><label>目标等级</label><select name="gradeCode">' + options + '</select></div>' +
+                '<div class="field"><label>调整原因<span class="req">*</span></label>' +
+                '<textarea name="reason" rows="3" maxlength="200" placeholder="如：年度晋升，承担团队负责人职责"></textarea></div>' +
+                '<button class="btn btn-primary" type="submit">保存调整</button>' +
+                '</form>' +
+                '<h4 style="margin-top:16px">最近调整</h4>' + adjustmentHtml +
+                '</div></div>';
+        }
+
+        async function toggle(employeeId, button) {
+            if (expandedId === employeeId) { collapse(); return; }
+            collapse();
+            button.disabled = true;
+            try {
+                const detail = await Api.get('/api/mgr/employees/' + employeeId);
+                const row = document.querySelector('tr[data-row="' + employeeId + '"]');
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'expand-row';
+                detailRow.dataset.expand = employeeId;
+                detailRow.innerHTML = '<td colspan="7">' + panelHtml(detail, employeeId) + '</td>';
+                row.after(detailRow);
+                expandedId = employeeId;
+                expandedButton = button;
+                button.innerHTML = '收起 <span class="caret open">▾</span>';
+                button.setAttribute('aria-expanded', 'true');
+
+                const form = detailRow.querySelector('form.grade-form');
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const gradeCode = form.gradeCode.value;
+                    const reason = form.reason.value.trim();
+                    if (reason.length < 2) {
+                        UI.toast('请填写至少 2 个字的调整原因', 'error');
+                        return;
+                    }
+                    const submit = form.querySelector('button[type="submit"]');
+                    submit.disabled = true;
+                    try {
+                        await Api.put('/api/mgr/employees/' + employeeId + '/grade', { gradeCode, reason });
+                        UI.toast('薪酬等级已更新', 'success');
+                        collapse();
+                        load();
+                    } catch (err) {
+                        UI.toast(err.message, 'error');
+                        submit.disabled = false;
+                    }
+                });
+            } catch (err) {
+                UI.toast(err.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function load() {
+            collapse();
+            body.innerHTML = '<tr><td colspan="7">' + UI.loading() + '</td></tr>';
+            const query = new URLSearchParams({ page: state.page, size: state.size, status: 'ACTIVE' });
+            if (state.keyword) query.set('keyword', state.keyword);
+            if (state.department) query.set('department', state.department);
+            try {
+                const data = await Api.get('/api/mgr/employees?' + query.toString());
+                if (!data.list.length) {
+                    body.innerHTML = UI.emptyRow(7, '没有符合条件的员工');
+                } else {
+                    body.innerHTML = data.list.map((employee) =>
+                        '<tr data-row="' + employee.id + '">' +
+                        '<td class="num">' + UI.escapeHtml(employee.empNo) + '</td>' +
+                        '<td><strong>' + UI.escapeHtml(employee.name) + '</strong></td>' +
+                        '<td>' + UI.escapeHtml(employee.department) + '</td>' +
+                        '<td><span class="tag tag-blue">' + UI.escapeHtml(employee.gradeCode) + '</span> ' + UI.escapeHtml(employee.gradeName) + '</td>' +
+                        '<td class="num">¥ ' + UI.money(employee.baseSalary) + '</td>' +
+                        '<td class="num">' + (employee.currentScore === null || employee.currentScore === undefined
+                            ? '<span class="muted">无有效业绩</span>' : UI.escapeHtml(employee.currentScore) + ' 分') + '</td>' +
+                        '<td class="actions"><button class="btn btn-sm btn-ghost" type="button" aria-expanded="false" data-expand="' + employee.id + '">' +
+                        '展开 <span class="caret">▾</span></button></td></tr>'
+                    ).join('');
+                    UI.$$('[data-expand]').forEach((button) => {
+                        button.addEventListener('click', () => toggle(Number(button.dataset.expand), button));
+                    });
+                }
+                UI.renderPager(pager, {
+                    total: data.total, page: data.page, size: data.size,
+                    onChange: (page) => { state.page = page; load(); }
+                });
+            } catch (err) {
+                body.innerHTML = UI.emptyRow(7, err.message);
+            }
+        }
+
+        document.getElementById('search-button').addEventListener('click', () => {
+            state.keyword = document.getElementById('keyword').value.trim();
+            state.department = document.getElementById('department').value;
+            state.page = 1;
+            load();
+        });
+        document.getElementById('keyword').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') document.getElementById('search-button').click();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') collapse();
+        });
+        load();
+    });
+</script>
+</body>
+</html>

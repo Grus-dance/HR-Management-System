@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.PerformanceMapper">
+
+    <sql id="voColumns">
+        p.id, p.employee_id, e.emp_no, e.name AS employee_name, e.department,
+        p.period, p.score, p.self_desc, p.status,
+        r.name AS reviewer_name, p.review_comment, p.submitted_at, p.reviewed_at
+    </sql>
+
+    <select id="findById" resultType="PerformanceRecord">
+        SELECT id, employee_id, period, score, self_desc, status, reviewer_id, review_comment,
+               submitted_at, reviewed_at
+        FROM performance_record
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByEmployeeAndPeriod" resultType="PerformanceRecord">
+        SELECT id, employee_id, period, score, self_desc, status, reviewer_id, review_comment,
+               submitted_at, reviewed_at
+        FROM performance_record
+        WHERE employee_id = #{employeeId} AND period = #{period}
+    </select>
+
+    <select id="selectByEmployee" resultType="org.example.vo.PerformanceVo">
+        SELECT <include refid="voColumns"/>
+        FROM performance_record p
+        JOIN employee e ON e.id = p.employee_id
+        LEFT JOIN employee r ON r.id = p.reviewer_id
+        WHERE p.employee_id = #{employeeId}
+        ORDER BY p.period DESC
+    </select>
+
+    <select id="selectPage" resultType="org.example.vo.PerformanceVo">
+        SELECT <include refid="voColumns"/>
+        FROM performance_record p
+        JOIN employee e ON e.id = p.employee_id
+        LEFT JOIN employee r ON r.id = p.reviewer_id
+        <where>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+        </where>
+        ORDER BY p.submitted_at DESC, p.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*)
+        FROM performance_record p
+        <where>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="countPending" resultType="long">
+        SELECT COUNT(*) FROM performance_record WHERE status = 'PENDING'
+    </select>
+
+    <insert id="insert" parameterType="PerformanceRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO performance_record (employee_id, period, score, self_desc, status, submitted_at)
+        VALUES (#{employeeId}, #{period}, #{score}, #{selfDesc}, #{status}, NOW())
+    </insert>
+
+    <update id="updateSelf">
+        UPDATE performance_record
+        SET score = #{score}, self_desc = #{selfDesc}, submitted_at = NOW()
+        WHERE id = #{id} AND employee_id = #{employeeId} AND status = 'PENDING'
+    </update>
+
+    <update id="resubmit">
+        UPDATE performance_record
+        SET score = #{score}, self_desc = #{selfDesc}, status = 'PENDING',
+            reviewer_id = NULL, review_comment = NULL, submitted_at = NOW(), reviewed_at = NULL
+        WHERE id = #{id} AND employee_id = #{employeeId} AND status = 'REJECTED'
+    </update>
+
+    <delete id="deletePending">
+        DELETE FROM performance_record
+        WHERE id = #{id} AND employee_id = #{employeeId} AND status = 'PENDING'
+    </delete>
+
+    <update id="review">
+        UPDATE performance_record
+        SET status = #{status}, review_comment = #{comment}, reviewer_id = #{reviewerId}, reviewed_at = NOW()
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <select id="selectTrend" resultType="PerformanceRecord">
+        SELECT p.employee_id, p.period, p.score, p.status
+        FROM performance_record p
+        WHERE p.status = 'APPROVED'
+          AND p.period &gt;= #{fromMonth}
+          AND p.employee_id IN
+        <foreach collection="employeeIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY p.period
+    </select>
+
+</mapper>

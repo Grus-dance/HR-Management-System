@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.AccountMapper">
+
+    <select id="findByEmployeeId" resultType="UserAccount">
+        SELECT id, employee_id, password_hash, role, must_change_password, last_login_at, created_at, updated_at
+        FROM user_account
+        WHERE employee_id = #{employeeId}
+    </select>
+
+    <insert id="insert" parameterType="UserAccount" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_account (employee_id, password_hash, role, must_change_password)
+        VALUES (#{employeeId}, #{passwordHash}, #{role}, #{mustChangePassword})
+    </insert>
+
+    <update id="updatePassword">
+        UPDATE user_account
+        SET password_hash = #{passwordHash}, must_change_password = #{mustChangePassword}
+        WHERE employee_id = #{employeeId}
+    </update>
+
+    <update id="updateLastLogin">
+        UPDATE user_account SET last_login_at = NOW() WHERE employee_id = #{employeeId}
+    </update>
+
+</mapper>

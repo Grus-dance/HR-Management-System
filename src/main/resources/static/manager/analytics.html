@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>数据分析 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="数据分析">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>数据分析</h1>
+                    <p class="page-desc">勾选员工，查看其薪资比例、近 6 个月薪资曲线与业绩曲线</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn" type="button" id="select-default">选前 5 名</button>
+                    <button class="btn btn-primary" type="button" id="analyze-button">生成分析</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>选择员工</h2><span class="sub" id="selected-count">已选 0 人</span></div>
+                <div class="card-body">
+                    <div class="check-list" id="employee-list"><span class="muted small">加载中…</span></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <div class="card-head"><h2>薪资比例</h2><span class="sub">当月应发占比</span></div>
+                    <div class="card-body"><div class="chart" id="share-chart"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-head"><h2>薪资曲线</h2><span class="sub">近 6 个月应发</span></div>
+                    <div class="card-body"><div class="chart" id="salary-chart"></div></div>
+                </div>
+                <div class="card span-2">
+                    <div class="card-head"><h2>业绩曲线</h2><span class="sub">近 6 个月有效业绩分</span></div>
+                    <div class="card-body"><div class="chart sm" id="performance-chart"></div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>汇总</h2><span class="sub" id="month-range"></span></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>姓名</th><th>当月应发</th><th>占比</th><th>近 6 个月平均业绩</th></tr></thead>
+                        <tbody id="summary-body"><tr><td colspan="4"><div class="empty">尚未生成分析</div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script src="/assets/vendor/echarts.min.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const listEl = document.getElementById('employee-list');
+        const countEl = document.getElementById('selected-count');
+        let employees = [];
+        const charts = {};
+
+        function selectedIds() {
+            return UI.$$('input[name="employee"]:checked').map((item) => Number(item.value));
+        }
+
+        function refreshCount() {
+            countEl.textContent = '已选 ' + selectedIds().length + ' 人';
+        }
+
+        function renderEmployees() {
+            listEl.innerHTML = employees.map((employee) =>
+                '<label class="check-item"><input type="checkbox" name="employee" value="' + employee.id + '">' +
+                UI.escapeHtml(employee.name) + '<span class="muted small">' + UI.escapeHtml(employee.department) + '</span></label>'
+            ).join('');
+            UI.$$('input[name="employee"]').forEach((input) => input.addEventListener('change', refreshCount));
+        }
+
+        function selectDefault() {
+            UI.$$('input[name="employee"]').forEach((input, index) => {
+                input.checked = index < 5;
+            });
+            refreshCount();
+        }
+
+        function chartOf(id) {
+            if (!charts[id]) charts[id] = echarts.init(document.getElementById(id));
+            return charts[id];
+        }
+
+        async function analyze() {
+            const ids = selectedIds();
+            if (!ids.length) {
+                UI.toast('请至少选择一名员工', 'error');
+                return;
+            }
+            const button = document.getElementById('analyze-button');
+            button.disabled = true;
+            try {
+                const data = await Api.get('/api/mgr/analytics?employeeIds=' + ids.join(',') + '&months=6');
+                const colors = ['#FB7299', '#00AEEC', '#FFB027', '#9B6BFF', '#2BA471', '#F56C6C', '#FF8FAB', '#59C7F9', '#E8890C', '#7C4DFF'];
+
+                chartOf('share-chart').setOption({
+                    color: colors,
+                    tooltip: { trigger: 'item', formatter: '{b}<br/>¥ {c}（{d}%）' },
+                    legend: { bottom: 0, type: 'scroll', textStyle: { color: '#61666D', fontSize: 11 } },
+                    series: [{
+                        type: 'pie',
+                        radius: ['42%', '66%'],
+                        center: ['50%', '44%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+                        label: { color: '#61666D', fontSize: 11, formatter: '{b}\n{d}%' },
+                        data: data.salaryShare
+                    }]
+                }, true);
+
+                chartOf('salary-chart').setOption({
+                    color: colors,
+                    tooltip: { trigger: 'axis', valueFormatter: (value) => '¥ ' + UI.money(value) },
+                    grid: { left: 64, right: 38, top: 40, bottom: 36 },
+                    legend: { top: 0, textStyle: { color: '#61666D', fontSize: 11 } },
+                    xAxis: {
+                        type: 'category', data: data.months, boundaryGap: false,
+                        axisLine: { lineStyle: { color: '#E3E5E7' } }, axisLabel: { color: '#9499A0', margin: 10, hideOverlap: true }
+                    },
+                    yAxis: {
+                        type: 'value', splitLine: { lineStyle: { color: '#EEF0F2' } },
+                        axisLabel: {
+                            color: '#9499A0',
+                            formatter: (value) => (value === 0 ? '0' : (value / 1000) + 'k')
+                        }
+                    },
+                    series: data.salarySeries.map((series) => ({
+                        name: series.name, type: 'line', smooth: true, symbolSize: 5,
+                        data: series.values, lineStyle: { width: 2 }
+                    }))
+                }, true);
+
+                chartOf('performance-chart').setOption({
+                    color: colors,
+                    tooltip: { trigger: 'axis' },
+                    grid: { left: 48, right: 38, top: 40, bottom: 36 },
+                    legend: { top: 0, textStyle: { color: '#61666D', fontSize: 11 } },
+                    xAxis: {
+                        type: 'category', data: data.months, boundaryGap: false,
+                        axisLine: { lineStyle: { color: '#E3E5E7' } }, axisLabel: { color: '#9499A0', margin: 10, hideOverlap: true }
+                    },
+                    yAxis: {
+                        type: 'value', min: 0, max: 100,
+                        splitLine: { lineStyle: { color: '#EEF0F2' } }, axisLabel: { color: '#9499A0' }
+                    },
+                    series: data.performanceSeries.map((series) => ({
+                        name: series.name, type: 'line', smooth: true, symbolSize: 5,
+                        data: series.values, connectNulls: true, lineStyle: { width: 2 }
+                    }))
+                }, true);
+
+                const total = data.salaryShare.reduce((sum, item) => sum + Number(item.value), 0);
+                const summary = data.salaryShare.map((item, index) => {
+                    const values = (data.performanceSeries[index] || {}).values || [];
+                    const valid = values.filter((value) => value !== null && value !== undefined);
+                    const average = valid.length ? (valid.reduce((a, b) => a + Number(b), 0) / valid.length).toFixed(1) : '—';
+                    const share = total ? ((Number(item.value) / total) * 100).toFixed(2) : '0.00';
+                    return '<tr><td><strong>' + UI.escapeHtml(item.name) + '</strong></td>' +
+                        '<td class="num">¥ ' + UI.money(item.value) + '</td>' +
+                        '<td class="num">' + share + '%</td>' +
+                        '<td class="num">' + average + (average === '—' ? '' : ' 分') + '</td></tr>';
+                }).join('');
+                document.getElementById('summary-body').innerHTML = summary;
+                document.getElementById('month-range').textContent = data.months[0] + ' 至 ' + data.months[data.months.length - 1];
+
+                Object.values(charts).forEach((chart) => chart.resize());
+            } catch (err) {
+                UI.toast(err.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        try {
+            const data = await Api.get('/api/mgr/employees?page=1&size=100&status=ACTIVE');
+            employees = data.list;
+            renderEmployees();
+            selectDefault();
+            await analyze();
+        } catch (err) {
+            listEl.innerHTML = '<span class="muted small">' + UI.escapeHtml(err.message) + '</span>';
+        }
+
+        document.getElementById('select-default').addEventListener('click', selectDefault);
+        document.getElementById('analyze-button').addEventListener('click', analyze);
+        window.addEventListener('resize', () => Object.values(charts).forEach((chart) => chart.resize()));
+    });
+</script>
+</body>
+</html>

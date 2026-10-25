@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>概览 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="概览">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>管理概览</h1>
+                    <p class="page-desc">查看公司人员概况、薪资总额与待办事项</p>
+                </div>
+                <div class="page-actions">
+                    <a class="btn" href="/manager/employees.html">员工档案</a>
+                    <a class="btn btn-primary" href="/manager/analytics.html">数据分析</a>
+                </div>
+            </div>
+
+            <div class="stat-grid" id="stats"></div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <div class="card-head"><h2>部门人数分布</h2><span class="sub">仅统计在职员工</span></div>
+                    <div class="card-body"><div class="chart sm" id="dept-chart"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-head"><h2>最近发放红包</h2><a href="/manager/bonus.html">去发放</a></div>
+                    <div class="card-body tight" id="recent-packets"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h2>待审业绩</h2>
+                    <span class="small muted">需一般用户审核</span>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>员工</th><th>月份</th><th>业绩分</th><th>提交时间</th></tr>
+                        </thead>
+                        <tbody id="pending-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script src="/assets/vendor/echarts.min.js"></script>
+<script>
+    Layout.init().then(async () => {
+        try {
+            const data = await Api.get('/api/dashboard');
+
+            document.getElementById('stats').innerHTML = (data.cards || []).map((card) =>
+                '<div class="stat-card"><div class="stat-label">' + UI.escapeHtml(card.label) + '</div>' +
+                '<div class="stat-value">' + UI.escapeHtml(card.value) + '<small>' + UI.escapeHtml(card.unit) + '</small></div></div>'
+            ).join('');
+
+            const pendingBody = document.getElementById('pending-body');
+            const pending = data.recentPerformances || [];
+            pendingBody.innerHTML = pending.length === 0
+                ? UI.emptyRow(4, '暂无待审业绩')
+                : pending.map((item) =>
+                    '<tr><td><strong>' + UI.escapeHtml(item.employeeName) + '</strong>' +
+                    '<span class="muted small"> · ' + UI.escapeHtml(item.empNo) + '</span></td>' +
+                    '<td>' + UI.escapeHtml(item.period) + '</td>' +
+                    '<td class="num">' + UI.escapeHtml(item.score) + '</td>' +
+                    '<td class="muted small">' + UI.fmtDateTime(item.submittedAt) + '</td></tr>'
+                ).join('');
+
+            const packets = data.recentRedPackets || [];
+            document.getElementById('recent-packets').innerHTML = packets.length === 0
+                ? '<div class="empty">暂无发放记录</div>'
+                : '<div class="kv-list">' + packets.map((item) =>
+                    '<div class="row"><span>' + UI.escapeHtml(item.employeeName) + ' · ' + UI.fmtDate(item.createdAt) + '</span>' +
+                    '<strong>¥ ' + UI.money(item.amount) + '</strong></div>'
+                ).join('') + '</div>';
+
+            const departments = data.departmentDistribution || [];
+            const chartEl = document.getElementById('dept-chart');
+            if (departments.length === 0) {
+                chartEl.innerHTML = '<div class="empty">暂无部门数据</div>';
+            } else {
+                const chart = echarts.init(chartEl);
+                chart.setOption({
+                    tooltip: { trigger: 'axis' },
+                    grid: { left: 92, right: 28, top: 12, bottom: 24 },
+                    xAxis: {
+                        type: 'value',
+                        splitLine: { lineStyle: { color: '#EEF0F2' } },
+                        axisLabel: { color: '#9499A0' }
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: departments.map((d) => d.name).reverse(),
+                        axisLine: { lineStyle: { color: '#E3E5E7' } },
+                        axisLabel: { color: '#61666D' }
+                    },
+                    series: [{
+                        type: 'bar',
+                        data: departments.map((d) => d.value).reverse(),
+                        barWidth: 14,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                { offset: 0, color: '#FB7299' },
+                                { offset: 1, color: '#FF9DB5' }
+                            ]),
+                            borderRadius: [0, 6, 6, 0]
+                        },
+                        label: { show: true, position: 'right', color: '#61666D' }
+                    }]
+                });
+                window.addEventListener('resize', () => chart.resize());
+            }
+        } catch (err) {
+            UI.toast(err.message || '加载失败', 'error');
+        }
+    });
+</script>
+</body>
+</html>

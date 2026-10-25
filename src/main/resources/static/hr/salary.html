@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>薪酬调整 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="薪酬调整">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>薪酬调整</h1>
+                    <p class="page-desc">调整员工的岗位津贴与绩效奖金比例；基本工资由管理者调整薪酬等级决定</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="filter-bar">
+                    <div class="field grow search-input">
+                        <label for="keyword">关键字</label>
+                        <input id="keyword" type="text" placeholder="工号或姓名">
+                    </div>
+                    <div class="field">
+                        <label for="department">部门</label>
+                        <select id="department"><option value="">全部部门</option></select>
+                    </div>
+                    <button class="btn btn-primary" id="search-button" type="button">查询</button>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>工号</th><th>姓名</th><th>部门</th><th>等级</th>
+                            <th>基本工资</th><th>岗位津贴</th><th>奖金比例</th><th class="actions">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="employee-body"><tr><td colspan="8"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+                <div id="pager"></div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const state = { page: 1, size: 10, keyword: '', department: '' };
+        const body = document.getElementById('employee-body');
+        const pager = document.getElementById('pager');
+
+        try {
+            const departments = await Api.get('/api/dict/departments');
+            document.getElementById('department').innerHTML =
+                '<option value="">全部部门</option>' +
+                departments.map((d) => '<option value="' + UI.escapeHtml(d) + '">' + UI.escapeHtml(d) + '</option>').join('');
+        } catch (err) { /* 忽略 */ }
+
+        async function load() {
+            body.innerHTML = '<tr><td colspan="8">' + UI.loading() + '</td></tr>';
+            const query = new URLSearchParams({ page: state.page, size: state.size });
+            if (state.keyword) query.set('keyword', state.keyword);
+            if (state.department) query.set('department', state.department);
+            try {
+                const data = await Api.get('/api/hr/employees?' + query.toString());
+                if (!data.list.length) {
+                    body.innerHTML = UI.emptyRow(8, '没有符合条件的员工');
+                } else {
+                    body.innerHTML = data.list.map((employee) =>
+                        '<tr><td class="num">' + UI.escapeHtml(employee.empNo) + '</td>' +
+                        '<td><strong>' + UI.escapeHtml(employee.name) + '</strong></td>' +
+                        '<td>' + UI.escapeHtml(employee.department) + '</td>' +
+                        '<td><span class="tag tag-blue">' + UI.escapeHtml(employee.gradeCode) + '</span></td>' +
+                        '<td class="num">¥ ' + UI.money(employee.baseSalary) + '</td>' +
+                        '<td class="num">¥ ' + UI.money(employee.allowance) + '</td>' +
+                        '<td class="num">' + UI.percent(employee.bonusRatio) + '</td>' +
+                        '<td class="actions"><button class="btn btn-sm btn-primary" type="button" data-adjust="' + employee.id + '">调整</button></td></tr>'
+                    ).join('');
+                    UI.$$('[data-adjust]').forEach((button) => {
+                        button.addEventListener('click', () => openAdjust(Number(button.dataset.adjust)));
+                    });
+                }
+                UI.renderPager(pager, {
+                    total: data.total, page: data.page, size: data.size,
+                    onChange: (page) => { state.page = page; load(); }
+                });
+            } catch (err) {
+                body.innerHTML = UI.emptyRow(8, err.message);
+            }
+        }
+
+        async function openAdjust(employeeId) {
+            let detail;
+            try {
+                detail = await Api.get('/api/hr/employees/' + employeeId);
+            } catch (err) {
+                UI.toast(err.message, 'error');
+                return;
+            }
+            const employee = detail.employee;
+            const salary = detail.salary;
+
+            const handle = UI.openModal({
+                title: '薪酬调整 · ' + employee.name,
+                content:
+                    '<div class="detail-grid">' +
+                    '<div class="detail-item"><div class="k">员工</div><div class="v">' + UI.escapeHtml(employee.name) +
+                    ' · ' + UI.escapeHtml(employee.empNo) + '</div></div>' +
+                    '<div class="detail-item"><div class="k">部门 / 职位</div><div class="v">' + UI.escapeHtml(employee.department) +
+                    ' / ' + UI.escapeHtml(employee.position) + '</div></div>' +
+                    '<div class="detail-item"><div class="k">薪酬等级</div><div class="v">' + UI.escapeHtml(employee.gradeCode) +
+                    ' ' + UI.escapeHtml(employee.gradeName) + '（基本工资 ¥ ' + UI.money(employee.baseSalary) + '）</div></div>' +
+                    '<div class="detail-item"><div class="k">本月应发</div><div class="v"><strong>¥ ' + UI.money(salary.total) + '</strong></div></div>' +
+                    '</div>' +
+                    '<div class="section-title">调整内容</div>' +
+                    '<div class="form-grid">' +
+                    '<div class="field"><label>岗位津贴（元）<span class="req">*</span></label>' +
+                    '<input type="number" id="allowance-input" min="0" max="100000" step="0.01" value="' + (employee.allowance || 0) + '"></div>' +
+                    '<div class="field"><label>绩效奖金比例（0-1）<span class="req">*</span></label>' +
+                    '<input type="number" id="ratio-input" min="0" max="1" step="0.01" value="' + (employee.bonusRatio || 0.2) + '"></div>' +
+                    '<div class="field span-2"><label>调整原因<span class="req">*</span></label>' +
+                    '<textarea id="reason-input" maxlength="200" rows="3" placeholder="如：岗位职责增加，津贴上调"></textarea></div>' +
+                    '</div>' +
+                    '<p class="form-hint" style="margin-top:8px">奖金比例用于计算绩效奖金：基本工资 × 比例 × 有效业绩分 / 100。</p>'
+            });
+
+            const cancel = document.createElement('button');
+            cancel.className = 'btn';
+            cancel.type = 'button';
+            cancel.textContent = '取消';
+            cancel.addEventListener('click', handle.close);
+
+            const save = document.createElement('button');
+            save.className = 'btn btn-primary';
+            save.type = 'button';
+            save.textContent = '保存调整';
+            save.addEventListener('click', async () => {
+                const allowance = Number(document.getElementById('allowance-input').value);
+                const bonusRatio = Number(document.getElementById('ratio-input').value);
+                const reason = document.getElementById('reason-input').value.trim();
+                if (Number.isNaN(allowance) || allowance < 0) {
+                    UI.toast('岗位津贴不能为负', 'error');
+                    return;
+                }
+                if (Number.isNaN(bonusRatio) || bonusRatio < 0 || bonusRatio > 1) {
+                    UI.toast('奖金比例需在 0-1 之间', 'error');
+                    return;
+                }
+                if (reason.length < 2) {
+                    UI.toast('请填写至少 2 个字的调整原因', 'error');
+                    return;
+                }
+                save.disabled = true;
+                try {
+                    await Api.put('/api/hr/employees/' + employeeId + '/salary', { allowance, bonusRatio, reason });
+                    UI.toast('薪酬调整已保存', 'success');
+                    handle.close();
+                    load();
+                } catch (err) {
+                    UI.toast(err.message, 'error');
+                    save.disabled = false;
+                }
+            });
+
+            handle.foot.appendChild(cancel);
+            handle.foot.appendChild(save);
+        }
+
+        document.getElementById('search-button').addEventListener('click', () => {
+            state.keyword = document.getElementById('keyword').value.trim();
+            state.department = document.getElementById('department').value;
+            state.page = 1;
+            load();
+        });
+        document.getElementById('keyword').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') document.getElementById('search-button').click();
+        });
+
+        load();
+    });
+</script>
+</body>
+</html>

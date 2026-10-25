@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>我的信息 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="我的信息">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>我的信息</h1>
+                    <p class="page-desc">部分档案信息录入后不可修改；联系方式与紧急联系人可自行维护</p>
+                </div>
+                <div class="page-actions">
+                    <a class="btn btn-primary" href="/api/me/resume.pdf" id="resume-button">下载 PDF 简历</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>档案信息</h2><span class="sub">带 🔒 的字段为锁定字段，个人不可修改</span></div>
+                <div class="card-body">
+                    <div class="detail-grid" id="basic-info"><div class="loading">加载中…</div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>可维护信息</h2><span class="sub">修改后立即生效</span></div>
+                <div class="card-body">
+                    <form id="profile-form">
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="phone">手机号</label>
+                                <input id="phone" name="phone" maxlength="11" placeholder="11 位手机号">
+                            </div>
+                            <div class="field">
+                                <label for="email">邮箱</label>
+                                <input id="email" name="email" type="email" maxlength="80">
+                            </div>
+                            <div class="field">
+                                <label for="emergencyContact">紧急联系人</label>
+                                <input id="emergencyContact" name="emergencyContact" maxlength="40">
+                            </div>
+                            <div class="field">
+                                <label for="emergencyPhone">紧急联系电话</label>
+                                <input id="emergencyPhone" name="emergencyPhone" maxlength="11">
+                            </div>
+                            <div class="field span-2">
+                                <label for="address">现居地址</label>
+                                <input id="address" name="address" maxlength="200">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-12 mt-18">
+                            <button class="btn btn-primary" type="submit" id="save-button">保存修改</button>
+                            <span class="muted small">仅可维护以上字段，其余字段由人事在入职时录入。</span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>PDF 简历</h2></div>
+                <div class="card-body flex items-center justify-between gap-12" style="flex-wrap: wrap;">
+                    <div>
+                        <p style="font-size:13.5px">根据你的基本信息、教育背景与曾就职经历自动生成简历，不包含薪酬信息。</p>
+                        <p class="muted small mt-12">下载后可直接用于内部存档或对外投递。</p>
+                    </div>
+                    <a class="btn btn-primary" href="/api/me/resume.pdf">生成并下载</a>
+                </div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const basic = document.getElementById('basic-info');
+        const form = document.getElementById('profile-form');
+
+        function item(label, value, locked) {
+            return '<div class="detail-item"><div class="k">' + UI.escapeHtml(label) +
+                (locked ? ' <span style="font-size:10px;opacity:.55;margin-left:2px" title="锁定字段">🔒</span>' : '') + '</div>' +
+                '<div class="v">' + UI.escapeHtml(value === null || value === undefined || value === '' ? '—' : value) + '</div></div>';
+        }
+
+        function fill(profile) {
+            basic.innerHTML =
+                item('员工编号', profile.empNo, true) +
+                item('姓名', profile.name, true) +
+                item('性别', profile.gender === 'M' ? '男' : '女', true) +
+                item('出生日期', UI.fmtDate(profile.birthDate), true) +
+                item('身份证号', profile.idCardMasked, true) +
+                item('部门', profile.department, true) +
+                item('职位', profile.position, true) +
+                item('薪酬等级', (profile.gradeCode || '') + ' ' + (profile.gradeName || ''), true) +
+                item('入职日期', UI.fmtDate(profile.hireDate), true) +
+                item('学历', profile.education, true) +
+                item('毕业院校', profile.school, true) +
+                item('专业', profile.major, true) +
+                item('在职状态', profile.status === 'RESIGNED' ? '离职' : '在职', true) +
+                item('手机号', profile.phone, false) +
+                item('邮箱', profile.email, false) +
+                item('现居地址', profile.address, false);
+
+            form.phone.value = profile.phone || '';
+            form.email.value = profile.email || '';
+            form.address.value = profile.address || '';
+            form.emergencyContact.value = profile.emergencyContact || '';
+            form.emergencyPhone.value = profile.emergencyPhone || '';
+        }
+
+        try {
+            const profile = await Api.get('/api/me/profile');
+            fill(profile);
+        } catch (err) {
+            basic.innerHTML = '<p class="muted">' + UI.escapeHtml(err.message) + '</p>';
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const payload = {
+                phone: form.phone.value.trim() || null,
+                email: form.email.value.trim() || null,
+                address: form.address.value.trim() || null,
+                emergencyContact: form.emergencyContact.value.trim() || null,
+                emergencyPhone: form.emergencyPhone.value.trim() || null
+            };
+            const button = document.getElementById('save-button');
+            button.disabled = true;
+            try {
+                const profile = await Api.put('/api/me/profile', payload);
+                fill(profile);
+                UI.toast('个人信息已更新', 'success');
+            } catch (err) {
+                UI.toast(err.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
+</script>
+</body>
+</html>

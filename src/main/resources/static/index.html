@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Api.get('/api/auth/me')
+        .then((me) => { location.replace(me.mustChangePassword ? '/me/password.html' : Layout.home(me.role)); })
+        .catch(() => { location.replace('/login.html'); });
+</script>
+</body>
+</html>

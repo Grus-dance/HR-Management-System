@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>我的薪资 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="我的薪资">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>我的薪资</h1>
+                    <p class="page-desc">仅本人可见；应发 = 基本工资 + 岗位津贴 + 绩效奖金 + 红包</p>
+                </div>
+            </div>
+
+            <div class="stat-grid" id="stats"></div>
+
+            <div class="card">
+                <div class="card-head"><h2>近 6 个月薪资曲线</h2><span class="sub" id="chart-note"></span></div>
+                <div class="card-body"><div class="chart" id="salary-chart"></div></div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>薪资明细</h2><span class="sub">历史月份为薪资快照，当月实时计算</span></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>月份</th><th>基本工资</th><th>岗位津贴</th><th>绩效奖金</th><th>红包</th><th>应发合计</th></tr>
+                        </thead>
+                        <tbody id="history-body"><tr><td colspan="6"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script src="/assets/vendor/echarts.min.js"></script>
+<script>
+    Layout.init().then(async () => {
+        try {
+            const current = await Api.get('/api/me/salary');
+            const history = await Api.get('/api/me/salary/history?months=6');
+
+            document.getElementById('stats').innerHTML = [
+                ['本月应发', '¥ ' + UI.money(current.total), '元'],
+                ['基本工资', '¥ ' + UI.money(current.baseSalary), '元'],
+                ['绩效奖金', '¥ ' + UI.money(current.performanceBonus), '元'],
+                ['本月红包', '¥ ' + UI.money(current.redPacket), '元']
+            ].map((card) =>
+                '<div class="stat-card"><div class="stat-label">' + card[0] + '</div>' +
+                '<div class="stat-value" style="font-size:22px">' + card[1] + '</div></div>'
+            ).join('');
+
+            document.getElementById('chart-note').textContent = '当月按当前等级与已审业绩实时计算';
+
+            const chart = echarts.init(document.getElementById('salary-chart'));
+            chart.setOption({
+                color: ['#FB7299'],
+                tooltip: {
+                    trigger: 'axis',
+                    valueFormatter: (value) => '¥ ' + UI.money(value)
+                },
+                grid: { left: 86, right: 34, top: 46, bottom: 36 },
+                xAxis: {
+                    type: 'category', data: history.map((item) => item.month), boundaryGap: false,
+                    axisLine: { lineStyle: { color: '#E3E5E7' } },
+                    axisLabel: { color: '#9499A0', margin: 10, hideOverlap: true }
+                },
+                yAxis: {
+                    type: 'value', splitLine: { lineStyle: { color: '#EEF0F2' } },
+                    axisLabel: {
+                        color: '#9499A0',
+                        formatter: (value) => (value === 0 ? '0' : (value / 1000) + 'k')
+                    }
+                },
+                series: [{
+                    type: 'line', smooth: true, symbolSize: 7,
+                    data: history.map((item) => item.total),
+                    areaStyle: { color: 'rgba(251,114,153,.12)' },
+                    lineStyle: { width: 2.5 },
+                    emphasis: { focus: 'series' }
+                }]
+            });
+            window.addEventListener('resize', () => chart.resize());
+
+            document.getElementById('history-body').innerHTML = history.slice().reverse().map((item) =>
+                '<tr><td>' + UI.escapeHtml(item.month) + '</td>' +
+                '<td class="num">¥ ' + UI.money(item.baseSalary) + '</td>' +
+                '<td class="num">¥ ' + UI.money(item.allowance) + '</td>' +
+                '<td class="num">¥ ' + UI.money(item.performanceBonus) + '</td>' +
+                '<td class="num">¥ ' + UI.money(item.redPacket) + '</td>' +
+                '<td class="num"><strong>¥ ' + UI.money(item.total) + '</strong></td></tr>'
+            ).join('');
+        } catch (err) {
+            UI.toast(err.message, 'error');
+        }
+    });
+</script>
+</body>
+</html>

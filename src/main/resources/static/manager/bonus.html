@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>绩效与红包 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="绩效与红包">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>绩效与红包</h1>
+                    <p class="page-desc">查看员工绩效，向表现突出的员工私发奖励红包（金额计入当月薪资）</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="filter-bar">
+                    <div class="field grow search-input">
+                        <label for="keyword">关键字</label>
+                        <input id="keyword" type="text" placeholder="工号或姓名">
+                    </div>
+                    <button class="btn btn-primary" id="search-button" type="button">查询</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>工号</th><th>姓名</th><th>部门</th><th>等级</th><th>本月绩效</th><th class="actions">操作</th></tr>
+                        </thead>
+                        <tbody id="employee-body"><tr><td colspan="6"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>发放记录</h2><span class="sub">最近 20 条</span></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>发放时间</th><th>收件人</th><th>金额</th><th>附言</th><th>状态</th></tr>
+                        </thead>
+                        <tbody id="packet-body"><tr><td colspan="5"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const employeeBody = document.getElementById('employee-body');
+        const packetBody = document.getElementById('packet-body');
+        let keyword = '';
+
+        async function loadEmployees() {
+            employeeBody.innerHTML = '<tr><td colspan="6">' + UI.loading() + '</td></tr>';
+            const query = new URLSearchParams({ page: 1, size: 100, status: 'ACTIVE' });
+            if (keyword) query.set('keyword', keyword);
+            try {
+                const data = await Api.get('/api/mgr/employees?' + query.toString());
+                if (!data.list.length) {
+                    employeeBody.innerHTML = UI.emptyRow(6, '没有符合条件的员工');
+                    return;
+                }
+                employeeBody.innerHTML = data.list.map((employee) =>
+                    '<tr><td class="num">' + UI.escapeHtml(employee.empNo) + '</td>' +
+                    '<td><strong>' + UI.escapeHtml(employee.name) + '</strong></td>' +
+                    '<td>' + UI.escapeHtml(employee.department) + '</td>' +
+                    '<td><span class="tag tag-blue">' + UI.escapeHtml(employee.gradeCode) + '</span></td>' +
+                    '<td class="num">' + (employee.currentScore === null || employee.currentScore === undefined
+                        ? '<span class="muted">无有效业绩</span>' : UI.escapeHtml(employee.currentScore) + ' 分') + '</td>' +
+                    '<td class="actions"><button class="btn btn-sm btn-primary" type="button" data-packet="' + employee.id + '">发红包</button></td></tr>'
+                ).join('');
+                UI.$$('[data-packet]').forEach((button) => {
+                    button.addEventListener('click', () => openPacket(Number(button.dataset.packet)));
+                });
+            } catch (err) {
+                employeeBody.innerHTML = UI.emptyRow(6, err.message);
+            }
+        }
+
+        async function loadPackets() {
+            packetBody.innerHTML = '<tr><td colspan="5">' + UI.loading() + '</td></tr>';
+            try {
+                const list = await Api.get('/api/mgr/red-packets?limit=20');
+                if (!list.length) {
+                    packetBody.innerHTML = UI.emptyRow(5, '暂无发放记录');
+                    return;
+                }
+                packetBody.innerHTML = list.map((item) =>
+                    '<tr><td class="muted">' + UI.fmtDateTime(item.createdAt) + '</td>' +
+                    '<td><strong>' + UI.escapeHtml(item.employeeName) + '</strong></td>' +
+                    '<td class="num">¥ ' + UI.money(item.amount) + '</td>' +
+                    '<td class="muted">' + UI.escapeHtml(item.message || '—') + '</td>' +
+                    '<td>' + (item.readFlag ? '<span class="tag tag-gray">已读</span>' : '<span class="tag tag-amber">未读</span>') + '</td></tr>'
+                ).join('');
+            } catch (err) {
+                packetBody.innerHTML = UI.emptyRow(5, err.message);
+            }
+        }
+
+        async function openPacket(employeeId) {
+            let detail;
+            try {
+                detail = await Api.get('/api/mgr/employees/' + employeeId);
+            } catch (err) {
+                UI.toast(err.message, 'error');
+                return;
+            }
+            const employee = detail.employee;
+            const perfs = detail.recentPerformances || [];
+            const perfHtml = perfs.length
+                ? '<table class="mini-table"><tbody>' + perfs.map((p) =>
+                    '<tr><td>' + UI.escapeHtml(p.period) + '</td><td class="num">' + UI.escapeHtml(p.score) + ' 分</td><td>' +
+                    UI.statusTag(p.status) + '</td></tr>').join('') + '</tbody></table>'
+                : '<p class="muted small">暂无业绩记录</p>';
+
+            const handle = UI.openModal({
+                title: '私发红包 · ' + employee.name,
+                size: '',
+                content:
+                    '<div class="detail-grid">' +
+                    '<div class="detail-item"><div class="k">员工</div><div class="v">' + UI.escapeHtml(employee.name) +
+                    ' · ' + UI.escapeHtml(employee.empNo) + '</div></div>' +
+                    '<div class="detail-item"><div class="k">部门 / 职位</div><div class="v">' +
+                    UI.escapeHtml(employee.department) + ' / ' + UI.escapeHtml(employee.position) + '</div></div>' +
+                    '<div class="detail-item"><div class="k">当前等级</div><div class="v">' +
+                    UI.escapeHtml(employee.gradeCode) + ' ' + UI.escapeHtml(employee.gradeName) + '</div></div>' +
+                    '<div class="detail-item"><div class="k">本月绩效</div><div class="v">' +
+                    (employee.currentScore === null || employee.currentScore === undefined ? '无有效业绩' : UI.escapeHtml(employee.currentScore) + ' 分') +
+                    '</div></div>' +
+                    '</div>' +
+                    '<div class="section-title">近 3 个月业绩</div>' + perfHtml +
+                    '<div class="section-title">红包信息</div>' +
+                    '<div class="field"><label>金额（元）<span class="req">*</span></label>' +
+                    '<input type="number" id="packet-amount" min="0.01" max="50000" step="0.01" placeholder="0.01 - 50000"></div>' +
+                    '<div class="field" style="margin-top:12px"><label>附言（仅收件人可见）</label>' +
+                    '<textarea id="packet-message" maxlength="200" rows="3" placeholder="如：项目攻坚奖励，辛苦了！"></textarea></div>' +
+                    '<p class="form-hint" style="margin-top:8px">红包金额将计入该员工发放当月的薪资。</p>'
+            });
+
+            const cancel = document.createElement('button');
+            cancel.className = 'btn';
+            cancel.type = 'button';
+            cancel.textContent = '取消';
+            cancel.addEventListener('click', handle.close);
+
+            const send = document.createElement('button');
+            send.className = 'btn btn-primary';
+            send.type = 'button';
+            send.textContent = '确认发放';
+            send.addEventListener('click', async () => {
+                const amount = Number(document.getElementById('packet-amount').value);
+                const message = document.getElementById('packet-message').value.trim();
+                if (!amount || amount <= 0 || amount > 50000) {
+                    UI.toast('请输入 0.01 - 50000 之间的金额', 'error');
+                    return;
+                }
+                send.disabled = true;
+                try {
+                    await Api.post('/api/mgr/red-packets', { employeeId, amount, message });
+                    UI.toast('红包已发放', 'success');
+                    handle.close();
+                    loadPackets();
+                } catch (err) {
+                    UI.toast(err.message, 'error');
+                    send.disabled = false;
+                }
+            });
+
+            handle.foot.appendChild(cancel);
+            handle.foot.appendChild(send);
+        }
+
+        document.getElementById('search-button').addEventListener('click', () => {
+            keyword = document.getElementById('keyword').value.trim();
+            loadEmployees();
+        });
+        document.getElementById('keyword').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') document.getElementById('search-button').click();
+        });
+
+        loadEmployees();
+        loadPackets();
+    });
+</script>
+</body>
+</html>

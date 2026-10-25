@@ -1,0 +1,25 @@
+pages: 22
+  /login.html -> 01-login.png
+  /manager/dashboard.html -> 02-manager-dashboard.png
+  /manager/dashboard.html (个人信息弹窗) -> 17-user-panel.png
+  /manager/dashboard.html (修改密码弹窗) -> 18-change-password-modal.png
+  /manager/employees.html -> 03-manager-employees.png
+  /manager/employees.html (详情弹窗) -> 03b-manager-employee-detail.png
+  /manager/salary.html -> 04-manager-salary.png
+  /manager/salary.html (展开) -> 05-manager-salary-expanded.png
+  /manager/bonus.html -> 06-manager-bonus.png
+  /manager/analytics.html -> 07-manager-analytics.png
+  /hr/employees.html -> 08-hr-employees.png
+  /hr/salary.html -> 09-hr-salary.png
+  /hr/salary.html (调整弹窗) -> 09b-hr-salary-adjust.png
+  /hr/performance.html -> 10-hr-performance.png
+  /me/dashboard.html -> 11-me-dashboard.png
+  /me/profile.html -> 12-me-profile.png
+  /me/salary.html -> 13-me-salary.png
+  /me/performance.html -> 14-me-performance.png
+  /me/performance.html (提交表单) -> 14b-me-performance-form.png
+  /me/bonus.html -> 15-me-bonus.png
+  resume pdf status=200 type=application/pdf
+  /me/password.html -> 16-first-login-password.png
+
+issues: 0

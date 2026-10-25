@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>员工档案 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="员工档案">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>员工档案</h1>
+                    <p class="page-desc">查看全部员工的一般信息、曾就职经历、薪酬与业绩，含离职员工</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="filter-bar">
+                    <div class="field grow search-input">
+                        <label for="keyword">关键字</label>
+                        <input id="keyword" type="text" placeholder="工号或姓名">
+                    </div>
+                    <div class="field">
+                        <label for="status">在职状态</label>
+                        <select id="status">
+                            <option value="">全部</option>
+                            <option value="ACTIVE">在职</option>
+                            <option value="RESIGNED">离职</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="department">部门</label>
+                        <select id="department"><option value="">全部部门</option></select>
+                    </div>
+                    <button class="btn btn-primary" id="search-button" type="button">查询</button>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>工号</th><th>姓名</th><th>部门</th><th>职位</th>
+                            <th>等级</th><th>入职日期</th><th>状态</th><th class="actions">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="employee-body"><tr><td colspan="8"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+                <div id="pager"></div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script src="/assets/js/employee-detail.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const state = { page: 1, size: 10, keyword: '', status: '', department: '' };
+        const body = document.getElementById('employee-body');
+        const pager = document.getElementById('pager');
+
+        try {
+            const departments = await Api.get('/api/dict/departments');
+            document.getElementById('department').innerHTML =
+                '<option value="">全部部门</option>' +
+                departments.map((d) => '<option value="' + UI.escapeHtml(d) + '">' + UI.escapeHtml(d) + '</option>').join('');
+        } catch (err) { /* 部门字典失败不阻塞页面 */ }
+
+        async function load() {
+            body.innerHTML = '<tr><td colspan="8">' + UI.loading() + '</td></tr>';
+            const query = new URLSearchParams({ page: state.page, size: state.size });
+            if (state.keyword) query.set('keyword', state.keyword);
+            if (state.status) query.set('status', state.status);
+            if (state.department) query.set('department', state.department);
+            try {
+                const data = await Api.get('/api/mgr/employees?' + query.toString());
+                if (!data.list.length) {
+                    body.innerHTML = UI.emptyRow(8, '没有符合条件的员工');
+                } else {
+                    body.innerHTML = data.list.map((employee) =>
+                        '<tr><td class="num">' + UI.escapeHtml(employee.empNo) + '</td>' +
+                        '<td><strong>' + UI.escapeHtml(employee.name) + '</strong></td>' +
+                        '<td>' + UI.escapeHtml(employee.department) + '</td>' +
+                        '<td>' + UI.escapeHtml(employee.position) + '</td>' +
+                        '<td><span class="tag tag-blue">' + UI.escapeHtml(employee.gradeCode) + '</span> ' +
+                        UI.escapeHtml(employee.gradeName) + '</td>' +
+                        '<td class="muted">' + UI.fmtDate(employee.hireDate) + '</td>' +
+                        '<td>' + UI.statusTag(employee.status) + '</td>' +
+                        '<td class="actions"><button class="btn btn-sm" type="button" data-detail="' + employee.id + '">详情</button></td></tr>'
+                    ).join('');
+                    UI.$$('[data-detail]').forEach((button) => {
+                        button.addEventListener('click', () => openDetail(button.dataset.detail));
+                    });
+                }
+                UI.renderPager(pager, {
+                    total: data.total, page: data.page, size: data.size,
+                    onChange: (page) => { state.page = page; load(); }
+                });
+            } catch (err) {
+                body.innerHTML = UI.emptyRow(8, err.message);
+            }
+        }
+
+        async function openDetail(id) {
+            try {
+                const detail = await Api.get('/api/mgr/employees/' + id);
+                UI.openModal({
+                    title: '员工详情 · ' + detail.employee.name,
+                    size: 'lg',
+                    content: EmployeeDetail.render(detail),
+                    footer: false
+                });
+            } catch (err) {
+                UI.toast(err.message, 'error');
+            }
+        }
+
+        document.getElementById('search-button').addEventListener('click', () => {
+            state.keyword = document.getElementById('keyword').value.trim();
+            state.status = document.getElementById('status').value;
+            state.department = document.getElementById('department').value;
+            state.page = 1;
+            load();
+        });
+        document.getElementById('keyword').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') document.getElementById('search-button').click();
+        });
+        load();
+    });
+</script>
+</body>
+</html>

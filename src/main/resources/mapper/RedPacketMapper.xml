@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.RedPacketMapper">
+
+    <sql id="voColumns">
+        rp.id, rp.employee_id, e.name AS employee_name, rp.amount, rp.message,
+        s.name AS sender_name, rp.read_flag, rp.created_at
+    </sql>
+
+    <insert id="insert" parameterType="RedPacket" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO red_packet (employee_id, amount, message, sender_id)
+        VALUES (#{employeeId}, #{amount}, #{message}, #{senderId})
+    </insert>
+
+    <select id="findVoById" resultType="org.example.vo.RedPacketVo">
+        SELECT <include refid="voColumns"/>
+        FROM red_packet rp
+        JOIN employee e ON e.id = rp.employee_id
+        JOIN employee s ON s.id = rp.sender_id
+        WHERE rp.id = #{id}
+    </select>
+
+    <select id="selectByEmployee" resultType="org.example.vo.RedPacketVo">
+        SELECT <include refid="voColumns"/>
+        FROM red_packet rp
+        JOIN employee e ON e.id = rp.employee_id
+        JOIN employee s ON s.id = rp.sender_id
+        WHERE rp.employee_id = #{employeeId}
+        ORDER BY rp.created_at DESC
+    </select>
+
+    <select id="selectByEmployeeForManager" resultType="org.example.vo.RedPacketVo">
+        SELECT <include refid="voColumns"/>
+        FROM red_packet rp
+        JOIN employee e ON e.id = rp.employee_id
+        JOIN employee s ON s.id = rp.sender_id
+        <where>
+            <if test="employeeId != null">
+                AND rp.employee_id = #{employeeId}
+            </if>
+        </where>
+        ORDER BY rp.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="markRead">
+        UPDATE red_packet SET read_flag = 1 WHERE id = #{id} AND employee_id = #{employeeId}
+    </update>
+
+    <select id="sumByMonth" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM red_packet
+        WHERE employee_id = #{employeeId} AND DATE_FORMAT(created_at, '%Y-%m') = #{month}
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*) FROM red_packet WHERE employee_id = #{employeeId} AND read_flag = 0
+    </select>
+
+</mapper>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>登录 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body class="login-body">
+<div class="login-card">
+    <div class="login-brand">
+        <div class="brand-mark">X</div>
+        <div>
+            <h1>X 公司人事管理系统</h1>
+            <p>网页设计与网站建设 · 三层架构</p>
+        </div>
+    </div>
+
+    <div class="login-error" id="login-error"></div>
+
+    <form class="login-form" id="login-form" autocomplete="on">
+        <div class="field">
+            <label for="empNo">员工编号</label>
+            <input id="empNo" name="empNo" type="text" placeholder="如 M0001 / H0001 / X1002" required
+                   autocomplete="username" maxlength="16">
+        </div>
+        <div class="field">
+            <label for="password">密码</label>
+            <input id="password" name="password" type="password" placeholder="请输入登录密码" required
+                   autocomplete="current-password" maxlength="32">
+        </div>
+        <button class="btn btn-primary" type="submit" id="login-button">登 录</button>
+    </form>
+
+    <div class="demo-accounts">
+        演示账号（初始密码均为 123456）
+        <div class="chips">
+            <button type="button" class="chip" data-emp="M0001">管理者 M0001</button>
+            <button type="button" class="chip" data-emp="H0001">一般用户 H0001</button>
+            <button type="button" class="chip" data-emp="X1002">个人用户 X1002</button>
+            <button type="button" class="chip" data-emp="X1001">首次改密 X1001</button>
+        </div>
+    </div>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    (function () {
+        const form = document.getElementById('login-form');
+        const errorBox = document.getElementById('login-error');
+        const button = document.getElementById('login-button');
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.classList.add('show');
+        }
+
+        function clearError() {
+            errorBox.classList.remove('show');
+        }
+
+        UI.$$('.chip').forEach((chip) => {
+            chip.addEventListener('click', () => {
+                document.getElementById('empNo').value = chip.dataset.emp;
+                document.getElementById('password').value = '123456';
+                clearError();
+                document.getElementById('password').focus();
+            });
+        });
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            clearError();
+            const empNo = document.getElementById('empNo').value.trim();
+            const password = document.getElementById('password').value;
+            if (!empNo || !password) {
+                showError('请输入员工编号和密码');
+                return;
+            }
+            button.disabled = true;
+            button.textContent = '登录中…';
+            try {
+                const me = await Api.post('/api/auth/login', { empNo, password });
+                location.href = me.mustChangePassword ? '/me/password.html' : Layout.home(me.role);
+            } catch (err) {
+                showError(err.message || '登录失败');
+                button.disabled = false;
+                button.textContent = '登 录';
+            }
+        });
+
+        // 已登录则直接进入工作台（忽略未登录错误）
+        Api.get('/api/auth/me').then((me) => {
+            location.href = me.mustChangePassword ? '/me/password.html' : Layout.home(me.role);
+        }).catch(() => { /* 未登录，停留在登录页 */ });
+    })();
+</script>
+</body>
+</html>

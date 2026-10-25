@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>我的业绩 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="我的业绩">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>我的业绩</h1>
+                    <p class="page-desc">按月提交业绩分与自评，经一般用户审核通过后才计为有效业绩</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-primary" type="button" id="submit-button">＋ 提交业绩</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h2>业绩记录</h2><span class="sub" id="hint"></span></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>月份</th><th>业绩分</th><th>自评说明</th><th>状态</th><th>审核意见</th><th>提交时间</th><th class="actions">操作</th></tr>
+                        </thead>
+                        <tbody id="performance-body"><tr><td colspan="7"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const body = document.getElementById('performance-body');
+        const hint = document.getElementById('hint');
+        let records = [];
+
+        function currentMonth() {
+            const now = new Date();
+            return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        }
+
+        function render() {
+            if (!records.length) {
+                body.innerHTML = UI.emptyRow(7, '还没有业绩记录，点击右上角提交本月业绩');
+                hint.textContent = '';
+                return;
+            }
+            const pending = records.filter((item) => item.status === 'PENDING').length;
+            const approved = records.filter((item) => item.status === 'APPROVED').length;
+            hint.textContent = '共 ' + records.length + ' 条 · 已通过 ' + approved + ' 条 · 待审核 ' + pending + ' 条';
+            body.innerHTML = records.map((item, index) => {
+                let actions = '<span class="muted small">—</span>';
+                if (item.status === 'PENDING') {
+                    actions = '<button class="btn btn-sm" type="button" data-edit="' + index + '">修改</button> ' +
+                        '<button class="btn btn-sm btn-danger" type="button" data-delete="' + index + '">删除</button>';
+                } else if (item.status === 'REJECTED') {
+                    actions = '<button class="btn btn-sm btn-primary" type="button" data-resubmit="' + index + '">重新提交</button>';
+                }
+                return '<tr><td>' + UI.escapeHtml(item.period) + '</td>' +
+                    '<td class="num">' + UI.escapeHtml(item.score) + '</td>' +
+                    '<td class="muted small" style="max-width:300px">' + UI.escapeHtml(item.selfDesc || '—') + '</td>' +
+                    '<td>' + UI.statusTag(item.status) + '</td>' +
+                    '<td class="muted small">' + UI.escapeHtml(item.reviewComment || '—') + '</td>' +
+                    '<td class="muted small">' + UI.fmtDateTime(item.submittedAt) + '</td>' +
+                    '<td class="actions">' + actions + '</td></tr>';
+            }).join('');
+
+            UI.$$('[data-edit]').forEach((button) => button.addEventListener('click', () => openForm(records[Number(button.dataset.edit)], 'edit')));
+            UI.$$('[data-resubmit]').forEach((button) => button.addEventListener('click', () => openForm(records[Number(button.dataset.resubmit)], 'resubmit')));
+            UI.$$('[data-delete]').forEach((button) => button.addEventListener('click', () => remove(records[Number(button.dataset.delete)])));
+        }
+
+        async function load() {
+            body.innerHTML = '<tr><td colspan="7">' + UI.loading() + '</td></tr>';
+            try {
+                records = await Api.get('/api/me/performance');
+                render();
+            } catch (err) {
+                body.innerHTML = UI.emptyRow(7, err.message);
+            }
+        }
+
+        function openForm(record, mode) {
+            const isEdit = mode === 'edit';
+            const isResubmit = mode === 'resubmit';
+            const title = isEdit ? '修改业绩' : (isResubmit ? '重新提交业绩' : '提交业绩');
+            const period = record ? record.period : currentMonth();
+            const handle = UI.openModal({
+                title,
+                content:
+                    '<div class="form-grid">' +
+                    '<div class="field"><label>业绩月份<span class="req">*</span></label>' +
+                    '<input type="month" id="period-input" value="' + period + '"' + (record ? ' disabled' : '') + '></div>' +
+                    '<div class="field"><label>业绩分（0-100）<span class="req">*</span></label>' +
+                    '<input type="number" id="score-input" min="0" max="100" step="0.5" value="' +
+                    (record ? record.score : '') + '" placeholder="如 88"></div>' +
+                    '<div class="field span-2"><label>自评说明</label>' +
+                    '<textarea id="desc-input" maxlength="500" rows="4" placeholder="简要说明本月工作完成情况">' +
+                    (record ? UI.escapeHtml(record.selfDesc || '') : '') + '</textarea></div>' +
+                    '</div>' +
+                    '<p class="form-hint" style="margin-top:10px">提交后状态为「待审核」，审核通过后计入有效业绩并参与绩效奖金计算。</p>'
+            });
+
+            const cancel = document.createElement('button');
+            cancel.className = 'btn';
+            cancel.type = 'button';
+            cancel.textContent = '取消';
+            cancel.addEventListener('click', handle.close);
+
+            const submit = document.createElement('button');
+            submit.className = 'btn btn-primary';
+            submit.type = 'button';
+            submit.textContent = isEdit ? '保存修改' : '提交';
+            submit.addEventListener('click', async () => {
+                const score = Number(document.getElementById('score-input').value);
+                const selfDesc = document.getElementById('desc-input').value.trim();
+                const targetPeriod = record ? record.period : document.getElementById('period-input').value;
+                if (!targetPeriod) {
+                    UI.toast('请选择业绩月份', 'error');
+                    return;
+                }
+                if (Number.isNaN(score) || score < 0 || score > 100) {
+                    UI.toast('业绩分需在 0-100 之间', 'error');
+                    return;
+                }
+                submit.disabled = true;
+                try {
+                    if (isEdit) {
+                        await Api.put('/api/me/performance/' + record.id, { period: targetPeriod, score, selfDesc });
+                        UI.toast('业绩已修改，等待审核', 'success');
+                    } else {
+                        await Api.post('/api/me/performance', { period: targetPeriod, score, selfDesc });
+                        UI.toast(isResubmit ? '已重新提交，等待审核' : '业绩已提交，等待审核', 'success');
+                    }
+                    handle.close();
+                    load();
+                } catch (err) {
+                    UI.toast(err.message, 'error');
+                    submit.disabled = false;
+                }
+            });
+
+            handle.foot.appendChild(cancel);
+            handle.foot.appendChild(submit);
+        }
+
+        async function remove(record) {
+            const ok = await UI.confirmDialog('确定删除 ' + record.period + ' 的业绩记录吗？删除后需要重新提交。',
+                { confirmText: '删除', danger: true });
+            if (!ok) return;
+            try {
+                await Api.del('/api/me/performance/' + record.id);
+                UI.toast('已删除', 'success');
+                load();
+            } catch (err) {
+                UI.toast(err.message, 'error');
+            }
+        }
+
+        document.getElementById('submit-button').addEventListener('click', () => openForm(null, 'create'));
+        load();
+    });
+</script>
+</body>
+</html>

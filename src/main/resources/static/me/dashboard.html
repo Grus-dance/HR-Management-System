@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>我的概览 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="我的概览">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>我的概览</h1>
+                    <p class="page-desc" id="welcome">查看本月薪资、业绩状态与收到的红包</p>
+                </div>
+                <div class="page-actions">
+                    <a class="btn" href="/me/performance.html">提交业绩</a>
+                    <a class="btn btn-primary" href="/me/profile.html">我的信息</a>
+                </div>
+            </div>
+
+            <div class="stat-grid" id="stats"></div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <div class="card-head"><h2>最近业绩</h2><a href="/me/performance.html" class="small">全部</a></div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead><tr><th>月份</th><th>业绩分</th><th>状态</th><th>审核意见</th></tr></thead>
+                            <tbody id="performance-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-head"><h2>最近红包</h2><a href="/me/bonus.html" class="small">全部</a></div>
+                    <div class="card-body tight" id="packet-body"></div>
+                </div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async (me) => {
+        document.getElementById('welcome').textContent =
+            me.name + '，你好。这里是你的本月薪资、业绩状态与红包记录。';
+        try {
+            const data = await Api.get('/api/dashboard');
+
+            document.getElementById('stats').innerHTML = (data.cards || []).map((card) =>
+                '<div class="stat-card"><div class="stat-label">' + UI.escapeHtml(card.label) + '</div>' +
+                '<div class="stat-value">' + UI.escapeHtml(card.value) + '<small>' + UI.escapeHtml(card.unit) + '</small></div></div>'
+            ).join('');
+
+            const performances = data.recentPerformances || [];
+            document.getElementById('performance-body').innerHTML = performances.length === 0
+                ? UI.emptyRow(4, '暂无业绩记录')
+                : performances.map((item) =>
+                    '<tr><td>' + UI.escapeHtml(item.period) + '</td>' +
+                    '<td class="num">' + UI.escapeHtml(item.score) + '</td>' +
+                    '<td>' + UI.statusTag(item.status) + '</td>' +
+                    '<td class="muted small">' + UI.escapeHtml(item.reviewComment || '—') + '</td></tr>'
+                ).join('');
+
+            const packets = data.recentRedPackets || [];
+            document.getElementById('packet-body').innerHTML = packets.length === 0
+                ? '<div class="empty">暂无红包</div>'
+                : '<div class="kv-list">' + packets.slice(0, 6).map((item) =>
+                    '<div class="row"><span>' + UI.escapeHtml(item.senderName) + ' · ' + UI.fmtDate(item.createdAt) +
+                    (item.readFlag ? '' : ' <span class="tag tag-amber">新</span>') + '</span>' +
+                    '<strong>¥ ' + UI.money(item.amount) + '</strong></div>'
+                ).join('') + '</div>';
+        } catch (err) {
+            UI.toast(err.message, 'error');
+        }
+    });
+</script>
+</body>
+</html>

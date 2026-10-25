@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>我的红包 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="我的红包">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>我的红包</h1>
+                    <p class="page-desc">管理者发放的特别奖励，附言仅你本人可见；金额计入发放当月薪资</p>
+                </div>
+            </div>
+
+            <div class="stat-grid" id="stats"></div>
+
+            <div class="card">
+                <div class="card-head"><h2>红包记录</h2><span class="sub" id="hint"></span></div>
+                <div class="card-body" id="packet-list"><div class="loading">加载中…</div></div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const listEl = document.getElementById('packet-list');
+        const hint = document.getElementById('hint');
+        let packets = [];
+
+        function render() {
+            const unread = packets.filter((item) => !item.readFlag).length;
+            const total = packets.reduce((sum, item) => sum + Number(item.amount), 0);
+            document.getElementById('stats').innerHTML =
+                '<div class="stat-card"><div class="stat-label">累计红包</div><div class="stat-value" style="font-size:22px">¥ ' +
+                UI.money(total) + '</div></div>' +
+                '<div class="stat-card"><div class="stat-label">红包个数</div><div class="stat-value">' +
+                packets.length + '<small>个</small></div></div>' +
+                '<div class="stat-card"><div class="stat-label">未读</div><div class="stat-value">' +
+                unread + '<small>个</small></div></div>';
+
+            hint.textContent = packets.length ? '共 ' + packets.length + ' 个红包' : '';
+            if (!packets.length) {
+                listEl.innerHTML = '<div class="empty"><span class="empty-icon">✦</span>还没有收到红包</div>';
+                return;
+            }
+            listEl.innerHTML = '<div class="stat-grid" style="margin-bottom:0">' + packets.map((item, index) =>
+                '<div class="stat-card" style="' + (item.readFlag ? '' : 'border-color:#FFD6E2;background:#FFF7FA;') + '">' +
+                '<div class="flex justify-between items-center">' +
+                '<div class="stat-label">' + UI.escapeHtml(item.senderName) + ' 发放</div>' +
+                (item.readFlag ? '<span class="tag tag-gray">已读</span>' : '<span class="tag tag-amber">未读</span>') +
+                '</div>' +
+                '<div class="stat-value" style="font-size:24px;color:#FB7299">¥ ' + UI.money(item.amount) + '</div>' +
+                '<p class="small" style="margin-top:6px;color:#61666D">' + UI.escapeHtml(item.message || '（无附言）') + '</p>' +
+                '<div class="flex justify-between items-center" style="margin-top:10px">' +
+                '<span class="muted small">' + UI.fmtDateTime(item.createdAt) + '</span>' +
+                (item.readFlag ? '' : '<button class="btn btn-sm btn-ghost" type="button" data-read="' + index + '">标记已读</button>') +
+                '</div></div>'
+            ).join('') + '</div>';
+
+            UI.$$('[data-read]').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const packet = packets[Number(button.dataset.read)];
+                    try {
+                        await Api.put('/api/me/red-packets/' + packet.id + '/read');
+                        packet.readFlag = true;
+                        render();
+                    } catch (err) {
+                        UI.toast(err.message, 'error');
+                    }
+                });
+            });
+        }
+
+        try {
+            packets = await Api.get('/api/me/red-packets');
+            render();
+        } catch (err) {
+            listEl.innerHTML = '<div class="empty">' + UI.escapeHtml(err.message) + '</div>';
+        }
+    });
+</script>
+</body>
+</html>

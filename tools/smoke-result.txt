@@ -1,0 +1,30 @@
+PASS | 管理者登录 | status=200 role=MANAGER name=张伟
+PASS | 管理者概览 | cards=4
+PASS | 管理者员工分页 | total=15 first=李娜
+PASS | 管理者数据分析 | series=3
+PASS | 管理者访问人事接口被拒 | status=403
+PASS | 一般用户登录 | status=200 role=HR
+PASS | 一般用户新建用户 | status=200 id=18
+PASS | 新用户初始密码登录 | mustChange=true
+PASS | 未改密访问业务接口被拦截 | status=403 code=40302
+PASS | 首次登录修改密码 | status=200
+PASS | 新密码登录 | mustChange=false
+PASS | 员工提交业绩 | status=200 record=PENDING
+PASS | 人事待审列表可见 | found=true
+PASS | 人事审核通过 | status=200
+PASS | 员工看到审核结果 | approved=true
+PASS | 管理者调整薪酬等级 | status=200 base=13000
+PASS | 人事调整津贴与奖金比例 | status=200 total=16340
+PASS | 管理者私发红包 | status=200 amount=500
+PASS | 薪资自动核算（等级+津贴+绩效+红包） | base=13000 bonus=2340 red=500 total=16840
+PASS | 员工访问人事接口被拒 | status=403
+PASS | 员工访问管理者接口被拒 | status=403
+PASS | 离职员工登录被拒 | status=401
+PASS | 首次改密账号登录 | mustChange=true
+PASS | PDF 简历下载 | status=200 bytes=17534 disposition=attachment; filename="___X1099_____.pdf"; filename*=UTF-8''%E7%AE%80%E5%8E%86_X1099_%E6%B5%8B%E8%AF%95%E5%91%98%E5%B7%A5.pdf
+PASS | 登录页可访问 | status=200
+PASS | 未登录访问管理页被重定向 | status=302 location=http://localhost:8080/login.html
+PASS | 管理者访问管理页 | status=200
+PASS | 静态样式加载 | status=200
+PASS | 图表库本地可用 | status=200 bytes=1030185
+SUMMARY total=28 failed=0

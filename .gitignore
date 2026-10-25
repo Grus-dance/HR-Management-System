@@ -1,0 +1,16 @@
+# build
+target/
+out/
+*.log
+
+# IDE
+.idea/
+*.iml
+
+# local tools
+tools/browser/node_modules/
+tools/browser/pw.tgz
+
+# OS
+Thumbs.db
+.DS_Store

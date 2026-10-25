@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.SalaryMapper">
+
+    <select id="selectGrades" resultType="SalaryGrade">
+        SELECT grade_code, grade_name, base_salary, description, sort_no
+        FROM salary_grade
+        ORDER BY sort_no
+    </select>
+
+    <select id="findGrade" resultType="SalaryGrade">
+        SELECT grade_code, grade_name, base_salary, description, sort_no
+        FROM salary_grade
+        WHERE grade_code = #{gradeCode}
+    </select>
+
+    <select id="findConfig" resultType="EmployeeSalary">
+        SELECT employee_id, allowance, bonus_ratio, updated_by, updated_at
+        FROM employee_salary
+        WHERE employee_id = #{employeeId}
+    </select>
+
+    <insert id="insertConfig" parameterType="EmployeeSalary">
+        INSERT INTO employee_salary (employee_id, allowance, bonus_ratio)
+        VALUES (#{employeeId}, #{allowance}, #{bonusRatio})
+    </insert>
+
+    <update id="updateConfig">
+        UPDATE employee_salary
+        SET allowance = #{allowance}, bonus_ratio = #{bonusRatio}, updated_by = #{updatedBy}
+        WHERE employee_id = #{employeeId}
+    </update>
+
+    <select id="findMonthly" resultType="SalaryMonthly">
+        SELECT id, employee_id, month, base_salary, allowance, performance_bonus, red_packet, total, created_at
+        FROM salary_monthly
+        WHERE employee_id = #{employeeId} AND month = #{month}
+    </select>
+
+    <select id="selectMonthly" resultType="SalaryMonthly">
+        SELECT id, employee_id, month, base_salary, allowance, performance_bonus, red_packet, total, created_at
+        FROM salary_monthly
+        WHERE employee_id = #{employeeId} AND month &gt;= #{fromMonth}
+        ORDER BY month
+    </select>
+
+    <select id="selectMonthlyByEmployees" resultType="SalaryMonthly">
+        SELECT id, employee_id, month, base_salary, allowance, performance_bonus, red_packet, total, created_at
+        FROM salary_monthly
+        WHERE month &gt;= #{fromMonth}
+          AND employee_id IN
+        <foreach collection="employeeIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY month
+    </select>
+
+    <insert id="insertMonthly" parameterType="SalaryMonthly" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO salary_monthly (employee_id, month, base_salary, allowance, performance_bonus, red_packet, total)
+        VALUES (#{employeeId}, #{month}, #{baseSalary}, #{allowance}, #{performanceBonus}, #{redPacket}, #{total})
+    </insert>
+
+    <select id="selectAdjustments" resultType="org.example.vo.AdjustmentVo">
+        SELECT a.id, a.employee_id, a.type, a.old_value, a.new_value, a.reason,
+               o.name AS operator_name, a.created_at
+        FROM salary_adjustment a
+        JOIN employee o ON o.id = a.operator_id
+        WHERE a.employee_id = #{employeeId}
+        ORDER BY a.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insertAdjustment" parameterType="SalaryAdjustment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO salary_adjustment (employee_id, type, old_value, new_value, reason, operator_id)
+        VALUES (#{employeeId}, #{type}, #{oldValue}, #{newValue}, #{reason}, #{operatorId})
+    </insert>
+
+</mapper>

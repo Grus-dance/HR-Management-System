@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.EmployeeMapper">
+
+    <sql id="voColumns">
+        e.id, e.emp_no, e.name, e.gender, e.birth_date,
+        CASE WHEN e.id_card IS NULL THEN NULL
+             ELSE CONCAT(LEFT(e.id_card, 4), '**********', RIGHT(e.id_card, 4)) END AS id_card_masked,
+        e.phone, e.email, e.address, e.department, e.position, e.grade_code, g.grade_name, g.base_salary,
+        COALESCE(s.allowance, 0) AS allowance, COALESCE(s.bonus_ratio, 0.2000) AS bonus_ratio,
+        (SELECT p.score FROM performance_record p
+          WHERE p.employee_id = e.id
+            AND p.period = DATE_FORMAT(NOW(), '%Y-%m')
+            AND p.status = 'APPROVED' LIMIT 1) AS current_score,
+        e.hire_date, e.status, e.resign_date, e.education, e.school, e.major,
+        e.emergency_contact, e.emergency_phone
+    </sql>
+
+    <sql id="pageWhere">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (e.emp_no LIKE CONCAT('%', #{keyword}, '%') OR e.name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="department != null and department != ''">
+                AND e.department = #{department}
+            </if>
+            <if test="status != null and status != ''">
+                AND e.status = #{status}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findById" resultType="Employee">
+        SELECT id, emp_no, name, gender, birth_date, id_card, phone, email, address, department, position,
+               grade_code, hire_date, status, resign_date, education, school, major,
+               emergency_contact, emergency_phone, created_at, updated_at
+        FROM employee
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByEmpNo" resultType="Employee">
+        SELECT id, emp_no, name, gender, birth_date, id_card, phone, email, address, department, position,
+               grade_code, hire_date, status, resign_date, education, school, major,
+               emergency_contact, emergency_phone, created_at, updated_at
+        FROM employee
+        WHERE emp_no = #{empNo}
+    </select>
+
+    <select id="findVoById" resultType="org.example.vo.EmployeeVo">
+        SELECT <include refid="voColumns"/>
+        FROM employee e
+        JOIN salary_grade g ON g.grade_code = e.grade_code
+        LEFT JOIN employee_salary s ON s.employee_id = e.id
+        WHERE e.id = #{id}
+    </select>
+
+    <select id="selectPage" resultType="org.example.vo.EmployeeVo">
+        SELECT <include refid="voColumns"/>
+        FROM employee e
+        JOIN salary_grade g ON g.grade_code = e.grade_code
+        LEFT JOIN employee_salary s ON s.employee_id = e.id
+        <include refid="pageWhere"/>
+        ORDER BY e.emp_no
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*)
+        FROM employee e
+        <include refid="pageWhere"/>
+    </select>
+
+    <insert id="insert" parameterType="Employee" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO employee (emp_no, name, gender, birth_date, id_card, phone, email, address, department,
+                              position, grade_code, hire_date, status, education, school, major,
+                              emergency_contact, emergency_phone)
+        VALUES (#{empNo}, #{name}, #{gender}, #{birthDate}, #{idCard}, #{phone}, #{email}, #{address},
+                #{department}, #{position}, #{gradeCode}, #{hireDate}, #{status}, #{education}, #{school},
+                #{major}, #{emergencyContact}, #{emergencyPhone})
+    </insert>
+
+    <update id="updateProfile">
+        UPDATE employee
+        <set>
+            phone = #{phone},
+            email = #{email},
+            address = #{address},
+            emergency_contact = #{emergencyContact},
+            emergency_phone = #{emergencyPhone}
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateGrade">
+        UPDATE employee SET grade_code = #{gradeCode} WHERE id = #{id}
+    </update>
+
+    <select id="selectExperiences" resultType="WorkExperience">
+        SELECT id, employee_id, company, position, start_date, end_date, description, created_at
+        FROM work_experience
+        WHERE employee_id = #{employeeId}
+        ORDER BY start_date DESC
+    </select>
+
+    <select id="findVosByIds" resultType="org.example.vo.EmployeeVo">
+        SELECT <include refid="voColumns"/>
+        FROM employee e
+        JOIN salary_grade g ON g.grade_code = e.grade_code
+        LEFT JOIN employee_salary s ON s.employee_id = e.id
+        WHERE e.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY e.emp_no
+    </select>
+
+    <select id="selectDepartments" resultType="string">
+        SELECT DISTINCT department FROM employee WHERE status = 'ACTIVE' ORDER BY department
+    </select>
+
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(*) FROM employee WHERE status = #{status}
+    </select>
+
+    <select id="countHiredBetween" resultType="long">
+        SELECT COUNT(*) FROM employee WHERE hire_date BETWEEN #{start} AND #{end}
+    </select>
+
+    <select id="countByDepartment" resultType="org.example.vo.NamedValueVo">
+        SELECT department AS name, COUNT(*) AS value
+        FROM employee
+        WHERE status = 'ACTIVE'
+        GROUP BY department
+        ORDER BY value DESC
+    </select>
+
+</mapper>

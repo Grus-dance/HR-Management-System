@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>业绩审核 · X 公司人事管理系统</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-title="业绩审核">
+<div class="app">
+    <header class="topnav" id="topnav"></header>
+    <main class="content">
+            <div class="page-head">
+                <div>
+                    <h1>业绩审核</h1>
+                    <p class="page-desc">员工提交的业绩需经审核确认后才计为有效业绩，并参与绩效奖金计算</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="filter-bar">
+                    <div class="btn-group" role="tablist">
+                        <button class="btn btn-primary" type="button" data-status="PENDING" id="tab-pending">待审核</button>
+                        <button class="btn" type="button" data-status="" id="tab-all">全部</button>
+                    </div>
+                    <div class="spacer"></div>
+                    <span class="muted small" id="total-hint"></span>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>员工</th><th>部门</th><th>月份</th><th>业绩分</th><th>自评说明</th>
+                            <th>状态</th><th>提交时间</th><th class="actions">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="performance-body"><tr><td colspan="8"><div class="loading">加载中…</div></td></tr></tbody>
+                    </table>
+                </div>
+                <div id="pager"></div>
+            </div>
+        </main>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script src="/assets/js/layout.js"></script>
+<script>
+    Layout.init().then(async () => {
+        const state = { page: 1, size: 10, status: 'PENDING' };
+        const body = document.getElementById('performance-body');
+        const pager = document.getElementById('pager');
+        const totalHint = document.getElementById('total-hint');
+
+        function setTab(status) {
+            state.status = status;
+            state.page = 1;
+            document.getElementById('tab-pending').className = 'btn' + (status === 'PENDING' ? ' btn-primary' : '');
+            document.getElementById('tab-all').className = 'btn' + (status === '' ? ' btn-primary' : '');
+            load();
+        }
+
+        async function load() {
+            body.innerHTML = '<tr><td colspan="8">' + UI.loading() + '</td></tr>';
+            const query = new URLSearchParams({ page: state.page, size: state.size });
+            if (state.status) query.set('status', state.status);
+            try {
+                const data = await Api.get('/api/hr/performance?' + query.toString());
+                totalHint.textContent = state.status === 'PENDING' ? '待审核 ' + data.total + ' 条' : '共 ' + data.total + ' 条记录';
+                if (!data.list.length) {
+                    body.innerHTML = UI.emptyRow(8, '暂无业绩记录');
+                } else {
+                    body.innerHTML = data.list.map((item) =>
+                        '<tr><td><strong>' + UI.escapeHtml(item.employeeName) + '</strong>' +
+                        '<span class="muted small"> · ' + UI.escapeHtml(item.empNo) + '</span></td>' +
+                        '<td>' + UI.escapeHtml(item.department) + '</td>' +
+                        '<td>' + UI.escapeHtml(item.period) + '</td>' +
+                        '<td class="num">' + UI.escapeHtml(item.score) + '</td>' +
+                        '<td class="muted small" style="max-width:260px">' + UI.escapeHtml(item.selfDesc || '—') + '</td>' +
+                        '<td>' + UI.statusTag(item.status) + '</td>' +
+                        '<td class="muted small">' + UI.fmtDateTime(item.submittedAt) + '</td>' +
+                        '<td class="actions">' + (item.status === 'PENDING'
+                            ? '<button class="btn btn-sm btn-primary" type="button" data-approve="' + item.id + '">通过</button> ' +
+                              '<button class="btn btn-sm btn-danger" type="button" data-reject="' + item.id + '">驳回</button>'
+                            : '<span class="muted small">' + UI.escapeHtml(item.reviewerName || '') + '</span>') + '</td></tr>'
+                    ).join('');
+                    UI.$$('[data-approve]').forEach((button) => {
+                        button.addEventListener('click', () => approve(Number(button.dataset.approve)));
+                    });
+                    UI.$$('[data-reject]').forEach((button) => {
+                        button.addEventListener('click', () => reject(Number(button.dataset.reject)));
+                    });
+                }
+                UI.renderPager(pager, {
+                    total: data.total, page: data.page, size: data.size,
+                    onChange: (page) => { state.page = page; load(); }
+                });
+            } catch (err) {
+                body.innerHTML = UI.emptyRow(8, err.message);
+            }
+        }
+
+        async function approve(id) {
+            const ok = await UI.confirmDialog('确认通过该条业绩？通过后将计入有效业绩并参与薪资计算。', { confirmText: '通过' });
+            if (!ok) return;
+            try {
+                await Api.post('/api/hr/performance/' + id + '/review', { approve: true, comment: '数据完整，确认有效' });
+                UI.toast('已通过审核', 'success');
+                load();
+            } catch (err) {
+                UI.toast(err.message, 'error');
+            }
+        }
+
+        function reject(id) {
+            const handle = UI.openModal({
+                title: '驳回业绩',
+                size: 'sm',
+                content: '<div class="field"><label>审核意见<span class="req">*</span></label>' +
+                    '<textarea id="reject-comment" maxlength="200" rows="3" placeholder="请说明驳回原因，便于员工修改后重新提交"></textarea></div>'
+            });
+            const cancel = document.createElement('button');
+            cancel.className = 'btn';
+            cancel.type = 'button';
+            cancel.textContent = '取消';
+            cancel.addEventListener('click', handle.close);
+            const submit = document.createElement('button');
+            submit.className = 'btn btn-danger';
+            submit.type = 'button';
+            submit.textContent = '确认驳回';
+            submit.addEventListener('click', async () => {
+                const comment = document.getElementById('reject-comment').value.trim();
+                if (comment.length < 2) {
+                    UI.toast('请填写驳回意见', 'error');
+                    return;
+                }
+                submit.disabled = true;
+                try {
+                    await Api.post('/api/hr/performance/' + id + '/review', { approve: false, comment });
+                    UI.toast('已驳回，员工可修改后重新提交', 'success');
+                    handle.close();
+                    load();
+                } catch (err) {
+                    UI.toast(err.message, 'error');
+                    submit.disabled = false;
+                }
+            });
+            handle.foot.appendChild(cancel);
+            handle.foot.appendChild(submit);
+        }
+
+        document.getElementById('tab-pending').addEventListener('click', () => setTab('PENDING'));
+        document.getElementById('tab-all').addEventListener('click', () => setTab(''));
+
+        load();
+    });
+</script>
+</body>
+</html>
