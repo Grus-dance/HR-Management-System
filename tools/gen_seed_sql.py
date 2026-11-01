@@ -109,10 +109,10 @@ def score_for(emp_id: int, month_index: int) -> Decimal:
 
 
 def main() -> None:
-    today = date(2026, 10, 23)
-    months = months_back(today, 6)          # 2026-05 .. 2026-10
-    history = months[:-1]                   # 2026-05 .. 2026-09
-    current = months[-1]                    # 2026-10
+    today = date.today()
+    months = months_back(today, 6)
+    history = months[:-1]
+    current = months[-1]
     lines: list[str] = []
     add = lines.append
 
@@ -187,33 +187,38 @@ def main() -> None:
     add("-- 业绩记录")
     pending = {4, 5, 8, 10}
     rejected = {9}
+    resign_month = EMPLOYEES[-1][9][:7]
     for eid, emp_no, name, gender, dept, pos, grade, hire, status, resign in EMPLOYEES:
-        if status == "RESIGNED":
-            continue
         for index, month in enumerate(months):
+            if status == "RESIGNED" and month > resign_month:
+                continue
             if month == current and eid in pending:
-                st, comment, reviewer, reviewed = "PENDING", None, None, None
+                st, comment, reviewer = "PENDING", None, None
             elif month == current and eid in rejected:
-                st, comment, reviewer, reviewed = "REJECTED", "自评材料不完整，请补充数据后重新提交", 2, "2026-10-20 16:40:00"
+                st, comment, reviewer = "REJECTED", "自评材料不完整，请补充数据后重新提交", 2
             else:
-                st = "APPROVED"
-                comment = "数据完整，确认有效"
-                reviewer = 2 if eid != 2 else 3
-                reviewed = f"{month}-21 15:00:00"
+                st, comment, reviewer = "APPROVED", "数据完整，确认有效", (2 if eid != 2 else 3)
+            submitted_at = f"{today.isoformat()} 08:00:00" if month == current else f"{month}-20 10:30:00"
+            if st == "PENDING":
+                reviewed = None
+            elif st == "APPROVED":
+                reviewed = f"{today.isoformat()} 09:00:00" if month == current else f"{month}-21 15:00:00"
+            else:
+                reviewed = f"{today.isoformat()} 09:30:00" if month == current else f"{month}-21 16:40:00"
             add("INSERT IGNORE INTO performance_record (employee_id, period, score, self_desc, status, reviewer_id, "
                 "review_comment, submitted_at, reviewed_at) VALUES ("
                 f"{eid}, {sql_str(month)}, {score_for(eid, index)}, "
                 f"{sql_str('本月完成既定目标，参与团队协作与知识分享。')}, {sql_str(st)}, "
                 f"{sql_str(reviewer) if reviewer else 'NULL'}, {sql_str(comment) if comment else 'NULL'}, "
-                f"{sql_str(month + '-20 10:30:00')}, {sql_str(reviewed) if reviewed else 'NULL'});")
+                f"{sql_str(submitted_at)}, {sql_str(reviewed) if reviewed else 'NULL'});")
     add("")
 
     add("-- 私发红包")
     packets = [
-        (4, 2000.00, "项目攻坚奖励，辛苦了！", 1, 1, "2026-08-15 18:00:00"),
-        (8, 1500.00, "产品发布贡献奖", 1, 1, "2026-09-10 17:30:00"),
-        (6, 800.00, "测试质量提升奖励", 1, 1, "2026-07-20 16:00:00"),
-        (4, 1000.00, "季度之星，继续保持！", 1, 0, "2026-10-08 09:20:00"),
+        (4, 2000.00, "项目攻坚奖励，辛苦了！", 1, 1, months[-4] + "-15 18:00:00"),
+        (8, 1500.00, "产品发布贡献奖", 1, 1, months[-3] + "-10 17:30:00"),
+        (6, 800.00, "测试质量提升奖励", 1, 1, months[-5] + "-20 16:00:00"),
+        (4, 1000.00, "季度之星，继续保持！", 1, 0, f"{today.isoformat()} 09:20:00"),
     ]
     for rp_id, (emp_id, amount, message, sender, read_flag, at) in enumerate(packets, start=1):
         add("INSERT IGNORE INTO red_packet (id, employee_id, amount, message, sender_id, read_flag, created_at) "
@@ -225,7 +230,7 @@ def main() -> None:
         for index, month in enumerate(months):
             if month == current:
                 continue
-            if status == "RESIGNED" and month > "2026-06":
+            if status == "RESIGNED" and month > resign_month:
                 continue
             base = Decimal(BASE[grade])
             allowance = Decimal(ALLOWANCE[eid])

@@ -179,7 +179,7 @@ mvn test
 ECharts 已放在 `static/assets/vendor/echarts.min.js`，无需联网；确认浏览器允许执行本地脚本。
 
 **Q：为什么所有日期都是 2026 年？**
-演示数据以生成当天（2026-10）为基准，生成脚本为 `tools/gen_seed_sql.py`。
+演示数据以生成当天所在月份（本次为 2026-11）为基准，生成脚本为 `tools/gen_seed_sql.py`。
 
 ---
 
