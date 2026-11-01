@@ -39,7 +39,7 @@
             const unread = packets.filter((item) => !item.readFlag).length;
             const total = packets.reduce((sum, item) => sum + Number(item.amount), 0);
             document.getElementById('stats').innerHTML =
-                '<div class="stat-card"><div class="stat-label">累计红包</div><div class="stat-value" style="font-size:22px">¥ ' +
+                '<div class="stat-card"><div class="stat-label">累计红包</div><div class="stat-value">¥ ' +
                 UI.money(total) + '</div></div>' +
                 '<div class="stat-card"><div class="stat-label">红包个数</div><div class="stat-value">' +
                 packets.length + '<small>个</small></div></div>' +
@@ -52,13 +52,13 @@
                 return;
             }
             listEl.innerHTML = '<div class="stat-grid" style="margin-bottom:0">' + packets.map((item, index) =>
-                '<div class="stat-card" style="' + (item.readFlag ? '' : 'border-color:#FFD6E2;background:#FFF7FA;') + '">' +
+                '<div class="stat-card" style="' + (item.readFlag ? '' : 'border-color:#FFE0E8;background:#FFF9FB;') + '">' +
                 '<div class="flex justify-between items-center">' +
                 '<div class="stat-label">' + UI.escapeHtml(item.senderName) + ' 发放</div>' +
                 (item.readFlag ? '<span class="tag tag-gray">已读</span>' : '<span class="tag tag-amber">未读</span>') +
                 '</div>' +
-                '<div class="stat-value" style="font-size:24px;color:#FB7299">¥ ' + UI.money(item.amount) + '</div>' +
-                '<p class="small" style="margin-top:6px;color:#61666D">' + UI.escapeHtml(item.message || '（无附言）') + '</p>' +
+                '<div class="stat-value accent">¥ ' + UI.money(item.amount) + '</div>' +
+                '<p class="small" style="margin-top:6px;color:#6B7280">' + UI.escapeHtml(item.message || '（无附言）') + '</p>' +
                 '<div class="flex justify-between items-center" style="margin-top:10px">' +
                 '<span class="muted small">' + UI.fmtDateTime(item.createdAt) + '</span>' +
                 (item.readFlag ? '' : '<button class="btn btn-sm btn-ghost" type="button" data-read="' + index + '">标记已读</button>') +

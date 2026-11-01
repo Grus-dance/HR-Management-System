@@ -38,7 +38,7 @@
 | 持久层 | MyBatis 4.0.1 + MySQL 8.0.19 + HikariCP |
 | 数据库脚本 | `schema.sql` / `data.sql`，启动自动初始化，可重复执行 |
 | PDF | Apache PDFBox 3.0.5（系统中文字体） |
-| 前端 | HTML5 + CSS3 + ES6，B 站风格（粉 `#FB7299` / 蓝 `#00AEEC`），无构建链；ECharts 5.5.1 本地文件 |
+| 前端 | HTML5 + CSS3 + ES6，B 站风格（粉 `#FB7299` / 蓝 `#00AEEC`），DIN 数字排版、轻边框与大留白；原生页面 + SVG 品牌图标；ECharts 5.5.1 本地文件 |
 | 密码 | PBKDF2-HMAC-SHA256（12 万次迭代 + 随机盐） |
 | 构建 | Maven（IntelliJ 内置即可） |
 

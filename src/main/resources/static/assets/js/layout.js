@@ -68,7 +68,7 @@
         topnav.innerHTML =
             '<div class="topnav-inner">' +
             '  <a class="brand" href="' + home(me.role) + '">' +
-            '    <div class="brand-mark">X</div>' +
+            '    <img class="brand-mark" src="/assets/img/logo.svg" alt="">' +
             '    <div class="brand-text"><strong>X 公司人事管理</strong><span>HR MANAGEMENT</span></div>' +
             '  </a>' +
             '  <nav class="topnav-menu" aria-label="工作台">' + items + '</nav>' +

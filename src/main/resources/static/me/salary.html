@@ -55,7 +55,7 @@
                 ['本月红包', '¥ ' + UI.money(current.redPacket), '元']
             ].map((card) =>
                 '<div class="stat-card"><div class="stat-label">' + card[0] + '</div>' +
-                '<div class="stat-value" style="font-size:22px">' + card[1] + '</div></div>'
+                '<div class="stat-value">' + card[1] + '</div></div>'
             ).join('');
 
             document.getElementById('chart-note').textContent = '当月按当前等级与已审业绩实时计算';
