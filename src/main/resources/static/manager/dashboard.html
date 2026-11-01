@@ -21,7 +21,7 @@
                 </div>
             </div>
 
-            <div class="stat-grid" id="stats"></div>
+            <div class="stat-grid bento" id="stats"></div>
 
             <div class="chart-grid">
                 <div class="card">
@@ -60,10 +60,25 @@
         try {
             const data = await Api.get('/api/dashboard');
 
-            document.getElementById('stats').innerHTML = (data.cards || []).map((card) =>
-                '<div class="stat-card"><div class="stat-label">' + UI.escapeHtml(card.label) + '</div>' +
-                '<div class="stat-value">' + UI.escapeHtml(card.value) + '<small>' + UI.escapeHtml(card.unit) + '</small></div></div>'
-            ).join('');
+            const statMeta = {
+                payroll: { icon: 'wallet', desc: '含基本工资、津贴、绩效奖金与红包' },
+                active: { icon: 'users', desc: '当前在职员工总数' },
+                resigned: { icon: 'logout', desc: '已办理离职的员工' },
+                pending: { icon: 'clipboard', desc: '等待一般用户确认的业绩' }
+            };
+            const statOrder = { payroll: 0, active: 1, resigned: 2, pending: 3 };
+            const cards = (data.cards || []).slice().sort((a, b) =>
+                (statOrder[a.key] ?? 9) - (statOrder[b.key] ?? 9));
+            document.getElementById('stats').innerHTML = cards.map((card) => {
+                const meta = statMeta[card.key] || { icon: 'chart', desc: '' };
+                return '<div class="stat-card">' +
+                    '<span class="stat-icon">' + Layout.icon(meta.icon) + '</span>' +
+                    '<div class="stat-label">' + UI.escapeHtml(card.label) + '</div>' +
+                    '<div class="stat-value">' + UI.escapeHtml(card.value) +
+                    '<small>' + UI.escapeHtml(card.unit) + '</small></div>' +
+                    (meta.desc ? '<div class="stat-desc">' + meta.desc + '</div>' : '') +
+                    '</div>';
+            }).join('');
 
             const pendingBody = document.getElementById('pending-body');
             const pending = data.recentPerformances || [];

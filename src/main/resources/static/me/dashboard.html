@@ -21,7 +21,7 @@
                 </div>
             </div>
 
-            <div class="stat-grid" id="stats"></div>
+            <div class="stat-grid bento" id="stats"></div>
 
             <div class="chart-grid">
                 <div class="card">
@@ -51,10 +51,25 @@
         try {
             const data = await Api.get('/api/dashboard');
 
-            document.getElementById('stats').innerHTML = (data.cards || []).map((card) =>
-                '<div class="stat-card"><div class="stat-label">' + UI.escapeHtml(card.label) + '</div>' +
-                '<div class="stat-value">' + UI.escapeHtml(card.value) + '<small>' + UI.escapeHtml(card.unit) + '</small></div></div>'
-            ).join('');
+            const statMeta = {
+                total: { icon: 'wallet', desc: '本月应发合计' },
+                base: { icon: 'credit', desc: '薪酬等级对应的基本工资' },
+                bonus: { icon: 'trend', desc: '已审核业绩对应的奖金' },
+                redPacket: { icon: 'gift', desc: '尚未查看的特别奖励' }
+            };
+            const statOrder = { total: 0, base: 1, bonus: 2, redPacket: 3 };
+            const cards = (data.cards || []).slice().sort((a, b) =>
+                (statOrder[a.key] ?? 9) - (statOrder[b.key] ?? 9));
+            document.getElementById('stats').innerHTML = cards.map((card) => {
+                const meta = statMeta[card.key] || { icon: 'chart', desc: '' };
+                return '<div class="stat-card">' +
+                    '<span class="stat-icon">' + Layout.icon(meta.icon) + '</span>' +
+                    '<div class="stat-label">' + UI.escapeHtml(card.label) + '</div>' +
+                    '<div class="stat-value">' + UI.escapeHtml(card.value) +
+                    '<small>' + UI.escapeHtml(card.unit) + '</small></div>' +
+                    (meta.desc ? '<div class="stat-desc">' + meta.desc + '</div>' : '') +
+                    '</div>';
+            }).join('');
 
             const performances = data.recentPerformances || [];
             document.getElementById('performance-body').innerHTML = performances.length === 0

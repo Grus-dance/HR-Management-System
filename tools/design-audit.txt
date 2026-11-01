@@ -1,0 +1,88 @@
+LOGIN {"logo":{"src":"/assets/img/logo.svg","naturalWidth":150,"width":"54px"},"eyebrow":{"fontSize":"10.5px","fontWeight":"600","letterSpacing":"1.89px","color":"rgb(140, 140, 140)"},"title":{"fontSize":"24px","fontWeight":"700","color":"rgb(31, 35, 41)"},"button":{"height":"46px","fontSize":"15px","fontWeight":"600","backgroundColor":"rgb(251, 114, 153)"}}
+DASHBOARD {
+  "body": {
+    "fontFamily": "Inter, \"HarmonyOS Sans SC\", \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "color": "rgb(31, 35, 41)",
+    "backgroundColor": "rgb(247, 248, 250)"
+  },
+  "pageTitle": {
+    "fontSize": "26px",
+    "fontWeight": "700",
+    "lineHeight": "32.5px",
+    "color": "rgb(31, 35, 41)",
+    "letterSpacing": "-0.39px"
+  },
+  "pageDesc": {
+    "fontSize": "13px",
+    "fontWeight": "400",
+    "color": "rgb(140, 140, 140)"
+  },
+  "tableHead": {
+    "fontSize": "12px",
+    "fontWeight": "600",
+    "color": "rgb(140, 140, 140)",
+    "padding": "13px 20px"
+  },
+  "tableCell": {
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "color": "rgb(31, 35, 41)",
+    "padding": "15px 20px"
+  },
+  "statValue": {
+    "fontSize": "44px",
+    "fontWeight": "700",
+    "fontFamily": "Bahnschrift, \"DIN Alternate\", \"Roboto Mono\", \"Cascadia Mono\", SFMono-Regular, ui-monospace, monospace",
+    "letterSpacing": "-1.1px",
+    "fontVariantNumeric": "tabular-nums"
+  },
+  "statLabel": {
+    "fontSize": "12px",
+    "fontWeight": "500",
+    "color": "rgb(107, 114, 128)"
+  },
+  "statCard": {
+    "borderRadius": "20px",
+    "backgroundColor": "rgb(255, 244, 247)",
+    "minHeight": "182px",
+    "padding": "22px",
+    "border": "1px solid rgb(235, 238, 245)"
+  },
+  "statIcon": {
+    "width": "42px",
+    "height": "42px",
+    "borderRadius": "12px",
+    "color": "rgb(228, 92, 130)"
+  },
+  "card": {
+    "border": "1px solid rgb(235, 238, 245)",
+    "borderRadius": "16px",
+    "boxShadow": "rgba(0, 0, 0, 0.05) 0px 2px 12px 0px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "cardBody": {
+    "padding": "24px"
+  },
+  "navItem": {
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "color": "rgb(217, 74, 114)",
+    "backgroundColor": "rgb(255, 243, 246)"
+  }
+}
+SALARY {
+  "statValue": {
+    "fontSize": "34px",
+    "fontWeight": "700",
+    "fontFamily": "Bahnschrift, \"DIN Alternate\", \"Roboto Mono\", \"Cascadia Mono\", SFMono-Regular, ui-monospace, monospace",
+    "fontVariantNumeric": "tabular-nums"
+  },
+  "tableNum": {
+    "fontFamily": "Bahnschrift, \"DIN Alternate\", \"Roboto Mono\", \"Cascadia Mono\", SFMono-Regular, ui-monospace, monospace",
+    "fontVariantNumeric": "tabular-nums",
+    "fontSize": "14px",
+    "fontWeight": "500"
+  }
+}

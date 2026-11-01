@@ -26,7 +26,7 @@
     --amber-soft: #FFF7E8;
     --red: #F56C6C;
     --red-soft: #FEF0F0;
-    --radius: 12px;
+    --radius: 16px;
     --radius-sm: 8px;
     --shadow: 0 2px 12px 0 rgba(0, 0, 0, .05);
     --shadow-hover: 0 6px 20px 0 rgba(0, 0, 0, .07);
@@ -212,7 +212,7 @@ p { margin: 0; }
     flex-wrap: wrap;
     padding: 24px 28px 24px 32px;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 16px;
     background:
         radial-gradient(420px 220px at 100% 0%, rgba(0, 174, 236, .08), transparent 70%),
         radial-gradient(420px 220px at 0% 100%, rgba(251, 114, 153, .10), transparent 70%),
@@ -350,6 +350,66 @@ p { margin: 0; }
 
 .stat-value small { font-family: var(--font-sans); font-size: 12px; color: var(--faint); font-weight: 400; margin-left: 6px; letter-spacing: 0; }
 .stat-value.accent { color: var(--pink-deep); }
+
+/* ---------- Bento 指标区（首页） ---------- */
+.stat-grid.bento {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.stat-grid.bento .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-height: 182px;
+    padding: 22px;
+    border-radius: 20px;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.stat-grid.bento .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+
+.stat-grid.bento .stat-card::before,
+.stat-grid.bento .stat-card::after { display: none; }
+
+.stat-grid.bento .stat-card:first-child {
+    grid-column: span 2;
+    background: #FFF4F7;
+}
+
+.stat-grid.bento .stat-card:nth-child(2) { background: #F0FAFE; }
+.stat-grid.bento .stat-card:nth-child(3) { background: #FAFBFC; }
+.stat-grid.bento .stat-card:nth-child(4) { background: #FFFFFF; }
+
+.stat-grid.bento .stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid var(--line);
+    display: grid;
+    place-items: center;
+    color: var(--pink-dark);
+    margin-bottom: 14px;
+}
+
+.stat-grid.bento .stat-card:nth-child(2) .stat-icon { color: var(--blue-dark); }
+.stat-grid.bento .stat-card:nth-child(3) .stat-icon { color: var(--pink-dark); }
+.stat-grid.bento .stat-card:nth-child(4) .stat-icon { color: var(--blue-dark); }
+.stat-grid.bento .stat-icon svg { width: 22px; height: 22px; }
+
+.stat-grid.bento .stat-label { color: var(--muted); }
+.stat-grid.bento .stat-value { font-size: 32px; margin-top: 4px; }
+.stat-grid.bento .stat-card:first-child .stat-value { font-size: 44px; }
+
+.stat-grid.bento .stat-desc {
+    margin-top: auto;
+    padding-top: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--faint);
+}
 
 /* ---------- 按钮 ---------- */
 .btn {
@@ -927,6 +987,9 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .content { padding: 22px 20px 48px; }
     .chart-grid { grid-template-columns: 1fr; }
     .chart-grid .span-2 { grid-column: auto; }
+    .stat-grid.bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat-grid.bento .stat-card:first-child { grid-column: span 2; }
+    .stat-grid.bento .stat-card:nth-child(4) { grid-column: span 2; }
     .expand-panel { grid-template-columns: 1fr; }
     .expand-col + .expand-col { border-left: none; padding-left: 0; border-top: 1px dashed var(--line); padding-top: 20px; }
 }
@@ -944,4 +1007,8 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .login-card { padding: 30px 24px 26px; }
     .login-brand h1 { font-size: 21px; }
     .data-table th, .data-table td { padding-left: 14px; padding-right: 14px; }
+    .stat-grid.bento { grid-template-columns: 1fr; }
+    .stat-grid.bento .stat-card:first-child,
+    .stat-grid.bento .stat-card:nth-child(4) { grid-column: span 1; }
+    .stat-grid.bento .stat-card { min-height: 160px; }
 }

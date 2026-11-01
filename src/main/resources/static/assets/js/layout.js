@@ -21,7 +21,11 @@
         target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>',
         lock: '<rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
         logout: '<path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15"/>' +
-            '<path d="M10 8l-4 4 4 4"/><path d="M6 12h9"/>'
+            '<path d="M10 8l-4 4 4 4"/><path d="M6 12h9"/>',
+        trend: '<path d="M4 17l5-5 4 3 7-8"/><path d="M20 7h-4"/><path d="M20 7v4"/>',
+        credit: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><path d="M7 14h4"/>',
+        clipboard: '<rect x="6" y="5" width="12" height="16" rx="2"/><path d="M9 5V3h6v2"/>' +
+            '<path d="M9 10h6M9 14h4"/>'
     };
 
     const MENUS = {
@@ -195,5 +199,5 @@
         return me;
     }
 
-    global.Layout = { init, home, renderTopnav, openUserPanel, openChangePassword };
+    global.Layout = { init, home, renderTopnav, openUserPanel, openChangePassword, icon };
 })(window);

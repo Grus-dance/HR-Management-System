@@ -38,7 +38,7 @@
 | 持久层 | MyBatis 4.0.1 + MySQL 8.0.19 + HikariCP |
 | 数据库脚本 | `schema.sql` / `data.sql`，启动自动初始化，可重复执行 |
 | PDF | Apache PDFBox 3.0.5（系统中文字体） |
-| 前端 | HTML5 + CSS3 + ES6，B 站风格（粉 `#FB7299` / 蓝 `#00AEEC`），DIN 数字排版、轻边框与大留白；原生页面 + SVG 品牌图标；ECharts 5.5.1 本地文件 |
+| 前端 | HTML5 + CSS3 + ES6，B 站风格（粉 `#FB7299` / 蓝 `#00AEEC`），Bento 指标区、DIN 数字排版、轻边框与大留白；原生页面 + SVG 品牌图标；ECharts 5.5.1 本地文件 |
 | 密码 | PBKDF2-HMAC-SHA256（12 万次迭代 + 随机盐） |
 | 构建 | Maven（IntelliJ 内置即可） |
 
@@ -151,6 +151,14 @@ node tools/browser/check.mjs
 
 使用系统 Edge 无头浏览器打开 16 个页面并截图到 `docs/screenshots/`，同时检查控制台错误、资源 404/500 与横向溢出。 `tools/browser` 内已放置 playwright-core（已被 .gitignore 忽略），删除后需自行执行 `npm install playwright-core` 再运行。
 
+设计规范审计：
+
+```bash
+node tools/browser/design-audit.mjs
+```
+
+结果写入 `tools/design-audit.txt`，用于验证标题/正文/表头字重与字号、DIN 数字字体、卡片边框与阴影。
+
 ### 6.3 单元测试
 
 ```bash
@@ -182,5 +190,6 @@ ECharts 已放在 `static/assets/vendor/echarts.min.js`，无需联网；确认�
 | `tools/gen_seed_sql.py` | 生成 `db/data.sql` 演示数据（含密码哈希、薪资快照） |
 | `tools/smoke-test.mjs` | 端到端接口测试 |
 | `tools/browser/check.mjs` | 无头浏览器页面检查与截图 |
+| `tools/browser/design-audit.mjs` | 设计规范审计（字重、字号、颜色、数字字体、卡片边框） |
 | `docs/需求分析与设计文档.md` | 需求、架构、数据库、接口、页面设计 |
 | `docs/screenshots/` | 关键页面截图（21 张） |
